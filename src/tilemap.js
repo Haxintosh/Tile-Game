@@ -1,6 +1,7 @@
 // OPTIMIZATION: render on a separate canvas at native spritesheet resolution, then scale it up to the display canvas
 // this will reduce img processing time per render cycle
-
+// or scale img to display size onload
+//
 export class TileMapRenderer {
   constructor(
     tileMap,
