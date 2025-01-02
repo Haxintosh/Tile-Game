@@ -1,0 +1,20 @@
+* {
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    background-color: black;
+}
+
+#bottomBar {
+    transition: transform 0.1s;
+}
+
+#bottomBar:hover {
+    transform: scale(1.1);
+    transition: transform 0.1s;
+}
+
+canvas {
+    pointer-events: none;
+}
