@@ -1,3 +1,9 @@
+// NOT WORKING AS OF 2025-01-02
+// DOES NOT RENDER CORRECTLY ON THE WORKET THREAD
+// OFFSCREEN CANVAS IS NOT WORKING ONUPDATE
+// THE IMAGE DATA RETURNED IS ALL 0
+// SEEMS TO BE SOMETHING WRONG WUTH ANIMATE.JS
+
 export class Animation {
   constructor(
     spriteSheet,
@@ -72,6 +78,8 @@ export class Animation {
 
   draw(targetCtx) {
     const frame = this.frames[this.currentFrame];
+    console.log(frame);
+    console.log(this);
     targetCtx.drawImage(frame, 0, 0);
   }
 }
@@ -109,7 +117,6 @@ export class Sequencer {
     this.ctx = this.canvas.getContext("2d");
     this.canvas.width = this.animations[0][0].animation.frameWidth;
     this.canvas.height = this.animations[0][0].animation.frameHeight;
-    console.log(this.animations);
   }
 
   update() {
@@ -250,24 +257,26 @@ export class Sequencer {
   }
 }
 
-async function sliceSpritesheetWithIDs(image, tileWidth = 16, tileHeight = 16) {
+async function sliceSpritesheetWithIDs(
+  imageBitmap,
+  tileWidth = 16,
+  tileHeight = 16,
+) {
+  console.log(imageBitmap);
   const tiles = {};
-  const canvas = document.createElement("canvas");
+  const canvas = new OffscreenCanvas(tileWidth, tileHeight);
   const context = canvas.getContext("2d");
 
-  const rows = Math.floor(image.height / tileHeight);
-  const cols = Math.floor(image.width / tileWidth);
-
-  canvas.width = tileWidth;
-  canvas.height = tileHeight;
+  const rows = Math.floor(imageBitmap.height / tileHeight);
+  const cols = Math.floor(imageBitmap.width / tileWidth);
 
   let id = 0;
-
+  console.log("bitmap", imageBitmap);
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       context.clearRect(0, 0, tileWidth, tileHeight);
       context.drawImage(
-        image,
+        imageBitmap,
         col * tileWidth,
         row * tileHeight,
         tileWidth,
@@ -281,7 +290,7 @@ async function sliceSpritesheetWithIDs(image, tileWidth = 16, tileHeight = 16) {
       const imageData = context.getImageData(0, 0, tileWidth, tileHeight);
       const pixels = imageData.data;
       let isTransparent = true;
-      // TODO: accelerate perf
+
       for (let i = 3; i < pixels.length; i += 4) {
         if (pixels[i] !== 0) {
           isTransparent = false;
@@ -290,19 +299,12 @@ async function sliceSpritesheetWithIDs(image, tileWidth = 16, tileHeight = 16) {
       }
 
       if (!isTransparent) {
-        const dataURL = canvas.toDataURL();
-
-        const tileImage = await new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.src = dataURL;
-        });
-
-        tiles[id] = tileImage;
+        const tileBitmap = await createImageBitmap(canvas);
+        tiles[id] = tileBitmap;
         id++;
       }
     }
   }
-
+  console.log("tiles", tiles);
   return tiles;
 }
