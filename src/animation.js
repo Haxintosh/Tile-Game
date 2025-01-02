@@ -122,6 +122,7 @@ export class Sequencer {
     }
 
     const currentAnimArr = this.animations[this.currentAnimation];
+    console.log(currentAnimArr);
     if (this.currentAnimation === null) {
       this.currentAnimation = 0;
     }
@@ -136,7 +137,7 @@ export class Sequencer {
     if (isAllDone) {
       this.currentAnimation++;
       if (this.currentAnimation >= this.animations.length) {
-        this.currentAnimation = this.animations.length - 1;
+        this.currentAnimation = 0;
       }
     }
 
@@ -171,12 +172,7 @@ export class Sequencer {
       anim.animation.draw(this.ctx);
     }
     // also draw older animations
-    for (let i = 0; i < this.currentAnimation; i++) {
-      const animArr = this.animations[i];
-      for (const anim of animArr) {
-        anim.animation.draw(this.ctx);
-      }
-    }
+    //
   }
 
   pause() {
