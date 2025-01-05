@@ -3,10 +3,37 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    background-color: black;
+    /* background-color: black; */
 }
 
-#bottomBar {
+@font-face {
+    font-family: "04b03";
+    src: url("UI/04b03.ttf");
+}
+
+#interactableUI {
+    position: absolute;
+    top: 120%;
+    left: 50%;
+    width: fit-content;
+    height: fit-content;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    background-color: #c28569;
+    border: 7px solid #ecd4ac;
+    font-family: "04b03";
+    font-size: 2.5em;
+    transform: translate(-50%, -50%);
+    padding: 3px 27px 3px 27px;
+    transition:
+        top 0.3s ease,
+        opacity 0.3s ease;
+    opacity: 0;
+}
+
+/* #bottomBar {
     transition: transform 0.1s;
 }
 
@@ -17,4 +44,4 @@
 
 canvas {
     pointer-events: none;
-}
+} */

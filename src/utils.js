@@ -92,4 +92,16 @@ export class Vec2 {
   distance(v) {
     return Math.sqrt((this.x - v.x) ** 2 + (this.y - v.y) ** 2);
   }
+
+  rotate(angle) {
+    // RAD
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    return new Vec2(this.x * cos - this.y * sin, this.x * sin + this.y * cos);
+  }
+
+  rotateAng(angle) {
+    // DEG
+    return this.rotate((angle * Math.PI) / 180);
+  }
 }

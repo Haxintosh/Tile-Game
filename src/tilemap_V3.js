@@ -2,10 +2,6 @@
 // this will reduce img processing time per render cycle
 // or scale img to display size onload
 //
-
-// DO NOT REUSE:  THIS IS CRAPPY CODE ALL THE WAY THROUGH
-// NOT MODULARIZED
-import * as TWEEN from "@tweenjs/tween.js";
 export class TileMapRenderer {
   constructor(
     tileMap,
@@ -64,7 +60,7 @@ export class TileMapRenderer {
     this.animDeltaT = 0;
     this.animLastT = 0;
 
-    this.speed = 4;
+    this.speed = 2;
     this.speedMultiplier = 1;
 
     this.gameTime = 0; // cycle of 0 - 1200000 in ms
@@ -75,10 +71,6 @@ export class TileMapRenderer {
     this.prevY = 0;
 
     this.isUIOpen = false;
-
-    this.zoom = 1;
-
-    this.interactUI = document.getElementById("interactableUI");
   }
 
   async init() {
@@ -87,7 +79,6 @@ export class TileMapRenderer {
     this.ctx.imageSmoothingEnabled = false;
     this.width = this.canvas.width;
     this.height = this.canvas.height;
-    this.interactUI.style.top = this.height * 1.2 + "px";
     this.playerTiles = await this.sliceSpritesheetWithIDs(
       this.playerSpritesheet,
       32,
@@ -112,8 +103,6 @@ export class TileMapRenderer {
       x: this.width / 2,
       y: this.height / 2 - 200,
     };
-
-    this.minInteractionDistance = this.tileWidth * this.scale * 2;
     // hald a tile
 
     this.animate();
@@ -121,19 +110,6 @@ export class TileMapRenderer {
 
   // ANIMATE //
   animate() {
-    // console.log("cam", this.camera);
-    // console.log("player", this.player);
-    // console.log("offset", this.offsetX, this.offsetY);
-    // console.log("playerOffset", this.playerOffsetX, this.playerOffsetY);
-    // console.log(
-    //   "player and offset",
-    //   this.player.x + this.offsetX,
-    //   this.player.y + this.offsetY,
-    // );
-    // console.log(
-    //   "tileXY",
-    //   this.getTilePosition(this.width / 2, this.height / 2),
-    // );
     this.deltaT = Date.now() - this.lastT;
     this.lastT = Date.now();
     this.ctx.clearRect(0, 0, this.width, this.height);
@@ -144,7 +120,6 @@ export class TileMapRenderer {
     let interactible = this.findClosestInteractible();
     if (interactible) {
       console.log(interactible);
-      this.handleInteraction(interactible);
       this.ctx.fillStyle = "rgba(255,0,255,0.5)";
       this.ctx.fillRect(
         interactible.x * this.tileWidth * this.scale - this.offsetX,
@@ -152,11 +127,10 @@ export class TileMapRenderer {
         16 * this.scale,
         16 * this.scale,
       );
-    } else {
-      this.hideInteractableUI();
     }
 
     this.update();
+
     requestAnimationFrame(() => this.animate());
   }
 
@@ -231,6 +205,7 @@ export class TileMapRenderer {
 
     this.prevX = this.player.x + this.playerOffsetX;
     this.prevY = this.player.y + this.playerOffsetY;
+
     this.gameTime += this.deltaT;
   }
 
@@ -252,25 +227,33 @@ export class TileMapRenderer {
       this.ctx.drawImage(
         tileImage,
         Math.round(
-          (tile.x * this.tileWidth * this.scale - this.offsetX) *
-            this.zoom *
-            precision,
+          (tile.x * this.tileWidth * this.scale - this.offsetX) * precision,
         ) / precision,
         Math.round(
-          (tile.y * this.tileWidth * this.scale - this.offsetY) *
-            this.zoom *
-            precision,
+          (tile.y * this.tileWidth * this.scale - this.offsetY) * precision,
         ) / precision,
-        Math.round(
-          this.tileWidth * (this.scale + epsilonR) * this.zoom * precision,
-        ) / precision,
-        Math.round(
-          this.tileWidth * (this.scale + epsilonR) * this.zoom * precision,
-        ) / precision,
+        Math.round(this.tileWidth * (this.scale + epsilonR) * precision) /
+          precision,
+        Math.round(this.tileWidth * (this.scale + epsilonR) * precision) /
+          precision,
       );
+      // if (isCollider) {
+      //   this.ctx.fillStyle = "rgba(255,0,0,0.5)";
+      //   this.ctx.fillRect(
+      //     Math.round(
+      //       (tile.x * this.tileWidth * this.scale - this.offsetX) * precision,
+      //     ) / precision,
+      //     Math.round(
+      //       (tile.y * this.tileWidth * this.scale - this.offsetY) * precision,
+      //     ) / precision,
+      //     Math.round(this.tileWidth * (this.scale + epsilonR) * precision) /
+      //       precision,
+      //     Math.round(this.tileWidth * (this.scale + epsilonR) * precision) /
+      //       precision,
+      //   );
+      // }
     }
   }
-
   drawPlayer() {
     // Check if configured time passed
     this.animDeltaT = Date.now() - this.animLastT;
@@ -317,6 +300,7 @@ export class TileMapRenderer {
       LEFT: this.playerTiles.left,
       RIGHT: this.playerTiles.right,
     };
+    console.log(this.lastIDLEFrame);
     const tiles = directions[this.lastDirection];
     if (tiles) {
       this.ctx.drawImage(
@@ -355,7 +339,6 @@ export class TileMapRenderer {
       );
     }
   }
-
   drawRun() {
     const directions = {
       UP: this.runTiles.up,
@@ -379,16 +362,10 @@ export class TileMapRenderer {
     }
   }
 
-  redraw() {
-    this.ctx.clearRect(0, 0, this.width, this.height);
-    this.drawAllLayers();
-    this.drawPlayer();
-    this.drawDayNightCycle();
-  }
-
   drawDayNightCycle() {
     const currentTime = this.gameTime % 1200000; // 24-hour cycle in ms
     const hour = (currentTime / this.msPerHour) % 24;
+    console.log(hour);
     let color;
     if (hour >= 6 && hour < 12) {
       // Morning (6 AM to 12 PM)
@@ -424,13 +401,6 @@ export class TileMapRenderer {
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
 
-  getTilePosition(screenX, screenY) {
-    const tileX =
-      (screenX + this.offsetX) / (this.tileWidth * this.scale * this.zoom);
-    const tileY =
-      (screenY + this.offsetY) / (this.tileWidth * this.scale * this.zoom);
-    return { x: tileX, y: tileY };
-  }
   debugPlayerDot() {
     this.ctx.fillStyle = "red";
     this.ctx.fillRect(
@@ -704,71 +674,18 @@ export class TileMapRenderer {
   }
 
   handleInteraction(tile) {
-    if (!tile) {
-      this.hideInteractableUI();
-      return;
-    }
+    if (!tile) return;
 
-    const interactionMap = {
-      93: "ANVIL",
-      94: "ANVIL",
-      99: "BED",
-      100: "BED",
-      92: "WEAPON_BUCKET",
-      90: "LADDER",
-      89: "SIGN",
-      91: "MELON",
-    };
-
-    const positionalDepedents = {
-      SIGN: [
-        {
-          pos: { x: 20, y: 5 },
-          val: "THIS IS A TEST SIGN @ POS 20 5",
-        },
-      ],
-    };
-
-    switch (interactionMap[tile.id]) {
-      case "ANVIL":
-        console.log("ANVIL");
-        this.showInteractableUI("Press E to use the anvil");
+    switch (tile.type) {
+      case "chest":
+        this.openChest(tile);
         break;
-      case "BED":
-        console.log("BED");
-        this.showInteractableUI("Press E to sleep");
-        break;
-      case "WEAPON_BUCKET":
-        console.log("WEAPON_BUCKET");
-        this.showInteractableUI("Press E to get a weapon");
-        break;
-      case "LADDER":
-        console.log("LADDER");
-        this.showInteractableUI("Press E to climb the ladder");
-        break;
-      case "SIGN":
-        console.log("SIGN");
-        this.showInteractableUI("Press E to read the sign");
-        break;
-      case "MELON":
-        console.log("MELON");
-        this.showInteractableUI("Press E to eat the melon");
+      case "npc":
+        this.talkToNPC(tile);
         break;
       default:
-        this.hideInteractableUI();
-        break;
+        console.log("Unknown interactible type:", tile.type);
     }
-  }
-
-  showInteractableUI(message) {
-    this.interactUI.innerText = message;
-    this.interactUI.style.top = "90%";
-    this.interactUI.style.opacity = 1;
-  }
-
-  hideInteractableUI() {
-    this.interactUI.style.top = "120%";
-    this.interactUI.style.opacity = 0;
   }
 
   debug() {
@@ -782,13 +699,6 @@ export class TileMapRenderer {
     });
     addEventListener("keyup", (e) => {
       this.keys[e.key] = false;
-    });
-
-    addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        console.log("PAUSED");
-        this.keys = {};
-      }
     });
   }
 }
