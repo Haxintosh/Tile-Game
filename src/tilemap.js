@@ -6,6 +6,7 @@
 // DO NOT REUSE:  THIS IS CRAPPY CODE ALL THE WAY THROUGH
 // NOT MODULARIZED
 import * as TWEEN from "@tweenjs/tween.js";
+import * as WP from "/src/UI-Features/weaponsmith/weapons.js";
 export class TileMapRenderer {
   constructor(
     tileMap,
@@ -78,7 +79,28 @@ export class TileMapRenderer {
 
     this.zoom = 1;
 
+    this.currentInteractible = null;
+
     this.interactUI = document.getElementById("interactableUI");
+    this.mainShopContainer = document.getElementById("mainShopContainer");
+    this.shopHeader = document.getElementById("headerContainer");
+    this.scrollItemsContainer = document.getElementById("scrollItemsContainer");
+    this.currentItemName = document.getElementById("name");
+    this.currentItemPrice = document.getElementById("price");
+    this.currentItemImg = document.getElementById("gunPreviewImg");
+    this.currentItemDesc = document.getElementById("itemDesc");
+    this.currentItemDmg = document.getElementById("dmg");
+    this.currentItemRng = document.getElementById("rng");
+    this.currentItemSpd = document.getElementById("spd");
+    this.currentItemMagSize = document.getElementById("magSize");
+    this.currentItemReloadTime = document.getElementById("reloadTime");
+    this.priceButton = document.getElementById("priceBtn");
+    this.buyButton = document.getElementById("buyBtn");
+    this.moneyContainer = document.getElementById("moneyIndContainer");
+    this.moneyInd = document.getElementById("moneyInd");
+    this.buyAbleWeapons = WP.starterWeapons;
+    this.moveUIDown();
+    this.moveMoneyDown();
   }
 
   async init() {
@@ -114,9 +136,16 @@ export class TileMapRenderer {
     };
 
     this.minInteractionDistance = this.tileWidth * this.scale * 2;
-    // hald a tile
 
     this.animate();
+
+    // PLAYER DATA
+    this.coins = 500; // starter coins
+    this.weapons = []; // TODO: Remove this array from avaliable weapons
+    this.currentWeapon = null;
+
+    this.fillShop(this.buyAbleWeapons);
+    this.syncMoney();
   }
 
   // ANIMATE //
@@ -706,6 +735,7 @@ export class TileMapRenderer {
   handleInteraction(tile) {
     if (!tile) {
       this.hideInteractableUI();
+      this.currentInteractible = null;
       return;
     }
 
@@ -758,9 +788,40 @@ export class TileMapRenderer {
         this.hideInteractableUI();
         break;
     }
+    this.currentInteractible = interactionMap[tile.id];
+  }
+
+  handleActualInteraction() {
+    switch (this.currentInteractible) {
+      case "ANVIL":
+        console.log("ANVIL");
+        break;
+      case "BED":
+        console.log("BED");
+        break;
+      case "WEAPON_BUCKET":
+        this.isUIOpen = true;
+        console.log("WEAPON_BUCKET");
+        this.moveUIUp();
+        this.moveMoneyUp();
+        this.hideInteractableUI();
+        break;
+      case "LADDER":
+        console.log("LADDER");
+        break;
+      case "SIGN":
+        console.log("SIGN");
+        break;
+      case "MELON":
+        console.log("MELON");
+        break;
+      default:
+        break;
+    }
   }
 
   showInteractableUI(message) {
+    if (this.isUIOpen) return;
     this.interactUI.innerText = message;
     this.interactUI.style.top = "90%";
     this.interactUI.style.opacity = 1;
@@ -775,6 +836,101 @@ export class TileMapRenderer {
     this.debugGrid();
   }
 
+  // ECONOMY //
+  buyItem(item) {
+    // find the item in the shop
+    const itemToBuy = this.buyAbleWeapons.find((i) => i.name === item);
+    if (!itemToBuy) return;
+    // check if player has enough money
+    if (this.coins >= itemToBuy.cost) {
+      // deduct the cost from player
+      this.coins -= itemToBuy.cost;
+      this.syncMoney();
+      // add the item to player's inventory
+      this.weapons.push(itemToBuy);
+      console.log("Bought: ", itemToBuy);
+      // remove the item from the shop
+      this.buyAbleWeapons = this.buyAbleWeapons.filter(
+        (i) => i.name !== itemToBuy.name,
+      );
+      // update the shop
+      this.fillShop(this.buyAbleWeapons);
+    } else {
+      console.log("Not enough money");
+    }
+  }
+
+  fillShop(weapons) {
+    // clear the shop
+    this.scrollItemsContainer.innerHTML = "";
+
+    // prefill with first item
+    this.currentItemName.innerHTML = weapons[0].name;
+    this.currentItemPrice.innerHTML = weapons[0].cost;
+    this.currentItemImg.src = weapons[0].img;
+    this.currentItemDesc.innerHTML = weapons[0].desc;
+    this.currentItemDmg.innerHTML = weapons[0].damage;
+    this.currentItemRng.innerHTML = weapons[0].range;
+    this.currentItemSpd.innerHTML = weapons[0].speed;
+    this.currentItemMagSize.innerHTML = weapons[0].magSize;
+    this.currentItemReloadTime.innerHTML = weapons[0].reloadTime;
+    this.priceButton.innerHTML = "Buy - " + weapons[0].cost;
+
+    if (this.coins < weapons[0].cost) {
+      this.priceButton.innerHTML = "Not enough";
+    }
+    // fill the shop with items
+
+    for (let i of weapons) {
+      let item = document.createElement("div");
+      item.classList.add("itemContainer");
+      item.innerHTML = i.name;
+      item.addEventListener("click", () => {
+        this.currentItemName.innerHTML = i.name;
+        this.currentItemPrice.innerHTML = i.cost;
+        this.currentItemImg.src = i.img;
+        this.currentItemDesc.innerHTML = i.desc;
+        this.currentItemDmg.innerHTML = i.damage;
+        this.currentItemRng.innerHTML = i.range;
+        this.currentItemSpd.innerHTML = i.speed;
+        this.currentItemMagSize.innerHTML = i.magSize;
+        this.currentItemReloadTime.innerHTML = i.reloadTime;
+        this.priceButton.innerHTML = "Buy - " + i.cost;
+        if (this.coins < i.cost) {
+          this.priceButton.innerHTML = "Not enough";
+        }
+      });
+      scrollItemsContainer.appendChild(item);
+    }
+  }
+
+  // UI TRANSITIONS //
+  //
+  syncMoney() {
+    this.moneyInd.innerHTML = this.coins;
+  }
+
+  moveUIUp() {
+    this.mainShopContainer.classList.add("up");
+    this.mainShopContainer.classList.remove("down");
+  }
+
+  // Function to move the UI down
+  moveUIDown() {
+    this.mainShopContainer.classList.add("down");
+    this.mainShopContainer.classList.remove("up");
+  }
+
+  moveMoneyUp() {
+    this.moneyContainer.classList.add("up");
+    this.moneyContainer.classList.remove("down");
+  }
+
+  moveMoneyDown() {
+    this.moneyContainer.classList.add("down");
+    this.moneyContainer.classList.remove("up");
+  }
+
   // HOOKS //
   addHooks() {
     addEventListener("keydown", (e) => {
@@ -782,6 +938,17 @@ export class TileMapRenderer {
     });
     addEventListener("keyup", (e) => {
       this.keys[e.key] = false;
+      if (e.key === "Escape") {
+        this.moveUIDown();
+        this.moveMoneyDown();
+        this.isUIOpen = false;
+      }
+    });
+
+    addEventListener("keypress", (e) => {
+      if (e.key === "e" || e.key === "E") {
+        this.handleActualInteraction();
+      }
     });
 
     addEventListener("visibilitychange", () => {
@@ -789,6 +956,11 @@ export class TileMapRenderer {
         console.log("PAUSED");
         this.keys = {};
       }
+    });
+
+    this.buyButton.addEventListener("click", () => {
+      let currentSelectedItem = document.getElementById("name").innerHTML;
+      this.buyItem(currentSelectedItem);
     });
   }
 }

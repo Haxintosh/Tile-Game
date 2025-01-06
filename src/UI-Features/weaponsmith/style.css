@@ -14,6 +14,9 @@ canvas {
     left: 50%;
     transform: translate(-50%, -50%);
 }
+#ui {
+    z-index: 5;
+}
 
 .mainShopContainer {
     position: absolute;
