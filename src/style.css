@@ -56,6 +56,10 @@ canvas {
     transform: translate(-50%, -50%);
 }
 
+#ui {
+    z-index: 5;
+}
+
 .mainShopContainer {
     /* visibility: hidden; */
     position: absolute;

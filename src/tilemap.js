@@ -5,6 +5,7 @@
 
 // DO NOT REUSE:  THIS IS CRAPPY CODE ALL THE WAY THROUGH
 // NOT MODULARIZED
+
 import * as TWEEN from "@tweenjs/tween.js";
 import * as WP from "/src/UI-Features/weaponsmith/weapons.js";
 export class TileMapRenderer {
@@ -16,6 +17,7 @@ export class TileMapRenderer {
     playerSpritesheet,
     walkSpritesheet,
     runSpritesheet,
+    uiCanvas,
   ) {
     this.tileMap = tileMap;
     this.spritesheet = spritesheet;
@@ -25,6 +27,7 @@ export class TileMapRenderer {
 
     this.scale = scale;
     this.canvas = canvas;
+    this.uiCanvas = uiCanvas;
 
     this.offsetX = 0;
     this.offsetY = 0;
@@ -81,6 +84,8 @@ export class TileMapRenderer {
 
     this.currentInteractible = null;
 
+    this.isMovementLocked = false;
+
     this.interactUI = document.getElementById("interactableUI");
     this.mainShopContainer = document.getElementById("mainShopContainer");
     this.shopHeader = document.getElementById("headerContainer");
@@ -101,11 +106,19 @@ export class TileMapRenderer {
     this.buyAbleWeapons = WP.starterWeapons;
     this.moveUIDown();
     this.moveMoneyDown();
+    // inventory
+    this.maxInventorySize = 10;
+    this.inventory = [];
+    this.weapons = [];
+
+    // more ui shenanigans
+    this.tweenGroup = new TWEEN.Group(); // womp global depr
   }
 
   async init() {
     this.tileSet = await this.sliceSpritesheetWithIDs(this.spritesheet);
     this.ctx = this.canvas.getContext("2d");
+    this.uiCtx = this.uiCanvas.getContext("2d");
     this.ctx.imageSmoothingEnabled = false;
     this.width = this.canvas.width;
     this.height = this.canvas.height;
@@ -172,7 +185,7 @@ export class TileMapRenderer {
     // this.debugPlayerDot();
     let interactible = this.findClosestInteractible();
     if (interactible) {
-      console.log(interactible);
+      // console.log(interactible);
       this.handleInteraction(interactible);
       this.ctx.fillStyle = "rgba(255,0,255,0.5)";
       this.ctx.fillRect(
@@ -185,11 +198,18 @@ export class TileMapRenderer {
       this.hideInteractableUI();
     }
 
+    if (this.tweenGroup) {
+      this.tweenGroup.update();
+    }
     this.update();
     requestAnimationFrame(() => this.animate());
   }
 
   update() {
+    let oldX = this.player.x;
+    let oldY = this.player.y;
+    let oldLastDirection = this.lastDirection;
+
     let newX = this.player.x;
     let newY = this.player.y;
 
@@ -243,6 +263,13 @@ export class TileMapRenderer {
       }
     } else {
       this.currentAction = "IDLE";
+    }
+
+    if (this.isMovementLocked) {
+      this.player.x = oldX;
+      this.player.y = oldY;
+      this.currentAction = "IDLE";
+      this.lastDirection = oldLastDirection;
     }
 
     if (this.cameraSync) {
@@ -451,6 +478,78 @@ export class TileMapRenderer {
 
     this.ctx.fillStyle = color;
     this.ctx.fillRect(0, 0, this.width, this.height);
+  }
+
+  drawZoomEffect(radius) {
+    this.uiCtx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
+    this.uiCtx.fillStyle = "rgba(0, 0, 0, 1)";
+    this.uiCtx.fillRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
+
+    this.uiCtx.globalCompositeOperation = "destination-out";
+    this.uiCtx.beginPath();
+    this.uiCtx.arc(
+      this.player.x + this.playerOffsetX,
+      this.player.y + this.playerOffsetY,
+      radius,
+      0,
+      Math.PI * 2,
+    );
+    this.uiCtx.fill();
+    this.uiCtx.globalCompositeOperation = "source-over";
+  }
+
+  startZoomEffect(dir) {
+    const duration = 1000; // ms
+    const finalRadius = 150;
+    const initialRadius = Math.max(this.uiCanvas.width, this.uiCanvas.height);
+    let actualFinalRadius = finalRadius;
+    let actualInitialRadius = initialRadius;
+
+    if (dir === "out") {
+      actualFinalRadius = initialRadius;
+      actualInitialRadius = finalRadius;
+    }
+
+    this.testTween = new TWEEN.Tween({ radius: actualInitialRadius })
+      .to({ radius: actualFinalRadius }, duration)
+      .easing(TWEEN.Easing.Quadratic.Out)
+      .onUpdate(({ radius }) => {
+        this.drawZoomEffect(radius);
+      })
+      .onComplete(() => {
+        // this.uiCtx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
+        setTimeout(() => {
+          this.testTweenStep2.start();
+        }, 750);
+      });
+    this.testTweenStep2 = new TWEEN.Tween({ radius: actualFinalRadius })
+      .to({ radius: 0 }, duration)
+      .easing(TWEEN.Easing.Quadratic.In)
+      .onUpdate(({ radius }) => {
+        this.drawZoomEffect(radius);
+      })
+      .onComplete(() => {
+        setTimeout(() => {
+          this.testTweenStep3.start();
+        }, 1000);
+      });
+    this.testTweenStep3 = new TWEEN.Tween({ radius: 0 })
+      .to({ radius: actualInitialRadius }, duration)
+      .easing(TWEEN.Easing.Quadratic.Out)
+      .onUpdate(({ radius }) => {
+        this.drawZoomEffect(radius);
+      })
+      .onComplete(() => {
+        this.uiCtx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
+        this.isUIOpen = false;
+        this.isMovementLocked = false;
+        console.log("DONE");
+      });
+    this.tweenGroup.add(this.testTween);
+    this.tweenGroup.add(this.testTweenStep2);
+    this.tweenGroup.add(this.testTweenStep3);
+    // this.testTween.chain(this.testTweenStep2);
+    this.testTween.start();
   }
 
   getTilePosition(screenX, screenY) {
@@ -761,27 +860,27 @@ export class TileMapRenderer {
 
     switch (interactionMap[tile.id]) {
       case "ANVIL":
-        console.log("ANVIL");
+        // console.log("ANVIL");
         this.showInteractableUI("Press E to use the anvil");
         break;
       case "BED":
-        console.log("BED");
+        // console.log("BED");
         this.showInteractableUI("Press E to sleep");
         break;
       case "WEAPON_BUCKET":
-        console.log("WEAPON_BUCKET");
+        // console.log("WEAPON_BUCKET");
         this.showInteractableUI("Press E to get a weapon");
         break;
       case "LADDER":
-        console.log("LADDER");
+        // console.log("LADDER");
         this.showInteractableUI("Press E to climb the ladder");
         break;
       case "SIGN":
-        console.log("SIGN");
+        // console.log("SIGN");
         this.showInteractableUI("Press E to read the sign");
         break;
       case "MELON":
-        console.log("MELON");
+        // console.log("MELON");
         this.showInteractableUI("Press E to eat the melon");
         break;
       default:
@@ -798,9 +897,12 @@ export class TileMapRenderer {
         break;
       case "BED":
         console.log("BED");
+        this.sleepSequence();
         break;
       case "WEAPON_BUCKET":
+        if (this.isUIOpen) return;
         this.isUIOpen = true;
+        this.isMovementLocked = true;
         console.log("WEAPON_BUCKET");
         this.moveUIUp();
         this.moveMoneyUp();
@@ -830,6 +932,15 @@ export class TileMapRenderer {
   hideInteractableUI() {
     this.interactUI.style.top = "120%";
     this.interactUI.style.opacity = 0;
+  }
+
+  sleepSequence() {
+    if (this.isUIOpen) return;
+    // zoom to black
+    this.isUIOpen = true;
+    this.hideInteractableUI();
+    this.isMovementLocked = true;
+    this.startZoomEffect("in");
   }
 
   debug() {
@@ -939,9 +1050,12 @@ export class TileMapRenderer {
     addEventListener("keyup", (e) => {
       this.keys[e.key] = false;
       if (e.key === "Escape") {
-        this.moveUIDown();
-        this.moveMoneyDown();
-        this.isUIOpen = false;
+        if (this.isUIOpen && this.currentInteractible !== "BED") {
+          this.moveUIDown();
+          this.moveMoneyDown();
+          this.isMovementLocked = false;
+          this.isUIOpen = false;
+        }
       }
     });
 

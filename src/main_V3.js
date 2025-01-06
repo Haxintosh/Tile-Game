@@ -3,6 +3,14 @@ import * as UTILS from "./utils.js";
 import { Player } from "./player.js";
 import * as TILEMAP from "./tilemap.js";
 
+// const originalWarn = console.warn;
+// console.warn = (...args) => {
+//   if (args[0].includes('downloadable font')) {
+//     return; // ignore
+//   }
+//   originalWarn(...args);
+// };
+
 // LOAD
 const images = {
   mapSpritesheet: "TEST-COLL/spritesheet.png",
@@ -44,8 +52,11 @@ function loadImage(src) {
 
 let tilemap;
 let canvas = document.getElementById("game");
+let uiCanvas = document.getElementById("ui");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
+uiCanvas.width = window.innerWidth;
+uiCanvas.height = window.innerHeight;
 
 async function init() {
   let json;
@@ -63,6 +74,7 @@ async function init() {
     images.playerIdle,
     images.playerWalk,
     images.playerRun,
+    uiCanvas,
   );
   await tilemap.init();
   isLoaded = true;
