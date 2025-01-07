@@ -17,6 +17,8 @@ const images = {
   playerIdle: "CHARACTER/IDLE.png",
   playerWalk: "CHARACTER/WALK.png",
   playerRun: "CHARACTER/RUN.png",
+  vegStage5012: "HARVEST/VEG/VEG_STAGE_5_0_1_2.png",
+  vegStage34: "HARVEST/VEG/VEG_STAGE_3_4.png",
 };
 
 let nLoaded = 0;

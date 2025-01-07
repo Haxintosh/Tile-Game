@@ -8,6 +8,7 @@
 
 import * as TWEEN from "@tweenjs/tween.js";
 import * as WP from "/src/UI-Features/weaponsmith/weapons.js";
+import * as PLANT from "./plant.js";
 export class TileMapRenderer {
   constructor(
     tileMap,
@@ -18,12 +19,17 @@ export class TileMapRenderer {
     walkSpritesheet,
     runSpritesheet,
     uiCanvas,
+    vegSpritesheet5012,
+    vegSpritesheet34,
   ) {
     this.tileMap = tileMap;
     this.spritesheet = spritesheet;
     this.playerSpritesheet = playerSpritesheet;
     this.walkSpritesheet = walkSpritesheet;
     this.runSpritesheet = runSpritesheet;
+
+    this.vegSpritesheet5012 = vegSpritesheet5012;
+    this.vegSpritesheet34 = vegSpritesheet34;
 
     this.scale = scale;
     this.canvas = canvas;
@@ -75,6 +81,9 @@ export class TileMapRenderer {
     this.msPerHour = 50000; // 50s, total 24h = 1200000ms
 
     this.currentCollisionBlock = null;
+
+    this.plants = []; // arr<plant>
+
     this.prevX = 0;
     this.prevY = 0;
 
@@ -136,7 +145,6 @@ export class TileMapRenderer {
     this.playerTiles = this.organizePlayerTileSet(4, this.playerTiles);
     this.walkTiles = this.organizePlayerTileSet(8, this.walkTiles);
     this.runTiles = this.organizePlayerTileSet(8, this.runTiles);
-
     this.addHooks();
     this.debug();
 
@@ -180,6 +188,7 @@ export class TileMapRenderer {
     this.lastT = Date.now();
     this.ctx.clearRect(0, 0, this.width, this.height);
     this.drawAllLayers();
+    this.drawAndUpdatePlants(); // plant growth && draw
     this.drawPlayer();
     this.drawDayNightCycle();
     // this.debugPlayerDot();
@@ -583,51 +592,6 @@ export class TileMapRenderer {
   }
 
   // HELPERs  //
-  async sliceSpritesheetWithIDs(image, tileSize = 16) {
-    // MUST AWAIT OR USE .THEN!!!!!!!!!!!
-    const tiles = {};
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
-
-    const rows = Math.floor(image.height / tileSize);
-    const cols = Math.floor(image.width / tileSize);
-
-    canvas.width = tileSize;
-    canvas.height = tileSize;
-
-    let id = 0;
-
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        context.clearRect(0, 0, tileSize, tileSize);
-        context.drawImage(
-          image,
-          col * tileSize,
-          row * tileSize,
-          tileSize,
-          tileSize,
-          0,
-          0,
-          tileSize,
-          tileSize,
-        );
-
-        const dataURL = canvas.toDataURL();
-
-        const tileImage = await new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.src = dataURL;
-        });
-
-        tiles[id] = tileImage;
-        id++;
-      }
-    }
-
-    return tiles;
-  }
-
   organizePlayerTileSet(n, tileset) {
     let newPlayerTileSet = {
       up: {},
@@ -660,38 +624,6 @@ export class TileMapRenderer {
       (this.width - this.tileMap.mapWidth * this.tileWidth * this.scale) / 2;
     this.offsetY =
       (this.height - this.tileMap.mapHeight * this.tileWidth * this.scale) / 2;
-  }
-
-  mirrorImage(image) {
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
-    canvas.width = image.width;
-    canvas.height = image.height;
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.translate(canvas.width, 0);
-    context.scale(-1, 1);
-    context.drawImage(image, 0, 0);
-    return canvas;
-  }
-
-  flipImageHorizontallyBlocking(image) {
-    if (!image.complete) {
-      throw new Error("Image is not fully loaded");
-    }
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    canvas.width = image.width;
-    canvas.height = image.height;
-
-    ctx.save();
-    ctx.scale(-1, 1); // flip
-    ctx.drawImage(image, -image.width, 0);
-    ctx.restore();
-
-    const flippedImage = new Image();
-    flippedImage.src = canvas.toDataURL();
-    return flippedImage;
   }
 
   interpolateColor(color1, color2, factor) {
@@ -846,7 +778,7 @@ export class TileMapRenderer {
       92: "WEAPON_BUCKET",
       90: "LADDER",
       89: "SIGN",
-      91: "MELON",
+      91: "BEETROOT",
     };
 
     const positionalDepedents = {
@@ -858,7 +790,25 @@ export class TileMapRenderer {
       ],
     };
 
-    switch (interactionMap[tile.id]) {
+    const interactionType = interactionMap[tile.id];
+    if (!interactionType) {
+      this.hideInteractableUI();
+      this.currentInteractible = null;
+      return;
+    }
+
+    if (positionalDepedents[interactionType]) {
+      const dependent = positionalDepedents[interactionType].find(
+        (dep) => dep.pos.x === tile.x && dep.pos.y === tile.y,
+      );
+      if (dependent) {
+        this.showInteractableUI(dependent.val);
+        this.currentInteractible = interactionType;
+        return;
+      }
+    }
+    console.log(tile);
+    switch (interactionType) {
       case "ANVIL":
         // console.log("ANVIL");
         this.showInteractableUI("Press E to use the anvil");
@@ -877,11 +827,11 @@ export class TileMapRenderer {
         break;
       case "SIGN":
         // console.log("SIGN");
-        this.showInteractableUI("Press E to read the sign");
+        // this.showInteractableUI("Press E to read the sign");
         break;
-      case "MELON":
+      case "BEETROOT":
         // console.log("MELON");
-        this.showInteractableUI("Press E to eat the melon");
+        this.showInteractableUI("Press E to eat the beetroot");
         break;
       default:
         this.hideInteractableUI();
@@ -914,8 +864,8 @@ export class TileMapRenderer {
       case "SIGN":
         console.log("SIGN");
         break;
-      case "MELON":
-        console.log("MELON");
+      case "BEETROOT":
+        console.log("BEETROOT");
         break;
       default:
         break;
@@ -947,7 +897,7 @@ export class TileMapRenderer {
     this.debugGrid();
   }
 
-  // ECONOMY //
+  // ECONOMY - SHOP //
   buyItem(item) {
     // find the item in the shop
     const itemToBuy = this.buyAbleWeapons.find((i) => i.name === item);
@@ -1040,6 +990,183 @@ export class TileMapRenderer {
   moveMoneyDown() {
     this.moneyContainer.classList.add("down");
     this.moneyContainer.classList.remove("up");
+  }
+
+  // HARVESTING //
+  plantParse() {
+    // Plants locations defined in tilemap as the 0th growth stage,
+    // with the lower tile as the actual plant position for gorwth stages 3, 4 which have a height of 2 tiles
+    // Stage 4 is the last graphical stage, stage 5 is the inventory/icon
+    const plantMap = {
+      // POSSIBLE PLANTS :
+      // "CARROT", "CAULI", "PUMPKIN", "SUNFLOWER", "RADISH",
+      // "BEETROOT", "PARSNIP", "POTATO", "CABBAGE", "KALE", "WHEAT"
+      91: "BEETROOT",
+    };
+
+    const plantLayer = this.tileMap.layers.find(
+      (layer) => layer.name === "PLANTS",
+    );
+    if (!plantLayer) return;
+
+    for (let tile of plantLayer.tiles) {
+      const plantType = plantMap[tile.id];
+      if (!plantType) continue;
+      const plant = {
+        // TODO : replace with actual plant object
+        x: tile.x,
+        y: tile.y,
+        type: plantType,
+        stage: 0,
+      };
+      this.plants.push(plant);
+    }
+  }
+
+  harvest(tile) {
+    // TODO: Verify for fully mature crops
+    // Use the return from findClosestInteractible() to get the tile
+    // check if the tile is a plant
+    const plant = this.plants.find((p) => p.x === tile.x && p.y === tile.y);
+    if (!plant) return;
+    // check if the plant is fully grown
+    if (plant.stage < 4) return; // TODO: warn player
+    if (plant.harvest()) {
+      // add the plant to the player's inventory
+      this.inventory.push(plant); // TODO: replace with actual item
+    }
+  }
+
+  drawAndUpdatePlants() {
+    for (let i of this.plants) {
+      // get img from update
+      const tileImg = i.update();
+      // draw (the postion refers to the bottom tile of the plant, the plant is composed of 2 tiles as a single img)
+      this.ctx.drawImage(
+        tileImg,
+        i.x * this.tileWidth * this.scale - this.offsetX,
+        i.y * this.tileWidth * this.scale - this.offsetY,
+        this.tileWidth * this.scale,
+        this.tileWidth * this.scale * 2,
+      );
+    }
+  }
+
+  // IMAGE MANIP //
+  /**
+   * Asynchronously slices a spritesheet image into individual tiles and assigns each tile a unique ID.
+   *
+   * @param {HTMLImageElement} image - The spritesheet image to be sliced.
+   * @param {number} [tileSize=16] - The width and height (in pixels) of each tile. Defaults to 16x16.
+   * @returns {Promise<Object<number, HTMLImageElement>>} A promise that resolves to an object where each key is a unique tile ID, nd the value is the corresponding tile as an HTMLImageElement
+   */
+  async sliceSpritesheetWithIDs(image, tileSize = 16) {
+    const tiles = {};
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    const rows = Math.floor(image.height / tileSize);
+    const cols = Math.floor(image.width / tileSize);
+
+    canvas.width = tileSize;
+    canvas.height = tileSize;
+
+    let id = 0;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        context.clearRect(0, 0, tileSize, tileSize);
+        context.drawImage(
+          image,
+          col * tileSize,
+          row * tileSize,
+          tileSize,
+          tileSize,
+          0,
+          0,
+          tileSize,
+          tileSize,
+        );
+
+        const dataURL = canvas.toDataURL();
+
+        const tileImage = await new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.src = dataURL;
+        });
+
+        tiles[id] = tileImage;
+        id++;
+      }
+    }
+
+    return tiles;
+  }
+
+  /**
+   * Creates a horizontally mirrored version of the input image on a new canvas.
+   *
+   * @param {HTMLImageElement} image - The input image to be mirrored.
+   * @returns {HTMLCanvasElement} - A canvas containing the mirrored image.
+   */
+  mirrorImage(image) {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
+    context.drawImage(image, 0, 0);
+    return canvas;
+  }
+
+  /**
+   * Flips an image horizontally and returns a new image object with the flipped content.
+   * Throws an error if the image is not fully loaded.
+   *
+   * @param {HTMLImageElement} image - The input image to be flipped.
+   * @throws {Error} - If the image is not fully loaded.
+   * @returns {HTMLImageElement} - A new image object containing the flipped image.
+   */
+  flipImageHorizontallyBlocking(image) {
+    if (!image.complete) {
+      throw new Error("Image is not fully loaded");
+    }
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = image.width;
+    canvas.height = image.height;
+
+    ctx.save();
+    ctx.scale(-1, 1); // flip
+    ctx.drawImage(image, -image.width, 0);
+    ctx.restore();
+
+    const flippedImage = new Image();
+    flippedImage.src = canvas.toDataURL();
+    return flippedImage;
+  }
+
+  /**
+   * Adds 16 pixels of transparent padding to the top of the input image
+   * and returns a new image object with the padded content.
+   *
+   * @param {HTMLImageElement} img - The input image to be padded.
+   * @returns {HTMLImageElement} - A new image object containing the padded image.
+   */
+  addPaddingOnTop(img) {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = img.width;
+    canvas.height = img.height + 16;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 16);
+    const paddedImage = new Image();
+    paddedImage.src = canvas.toDataURL();
+    return paddedImage;
   }
 
   // HOOKS //
