@@ -13,7 +13,7 @@ export class Weapon {
     projectileColor,
     spread = 0,
     spreadAngle = 0.5,
-    numProjectiles = 5,
+    numProjectiles = 1,
     magSize = 10,
     reloadTime = 500, // ms
   ) {
@@ -130,7 +130,7 @@ export class Weapon {
   }
 
   updateProjectiles() {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    // this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     for (let i = 0; i < this.projectiles.length; i++) {
       this.projectiles[i].update();
     }
@@ -172,7 +172,7 @@ export class Projectile {
     if (!this.ctx) return;
     if (!this.alive) return;
     this.ctx.beginPath();
-    this.ctx.arc(this.position.x, this.position.y, 2, 0, 2 * Math.PI);
+    this.ctx.arc(this.position.x, this.position.y, 8, 0, 2 * Math.PI);
     this.ctx.fillStyle = this.color;
     this.ctx.fill();
   }

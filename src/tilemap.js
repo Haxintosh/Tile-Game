@@ -1,14 +1,15 @@
 // OPTIMIZATION: render on a separate canvas at native spritesheet resolution, then scale it up to the display canvas
 // this will reduce img processing time per render cycle
 // or scale img to display size onload
-//
 
-// DO NOT REUSE:  THIS IS CRAPPY CODE ALL THE WAY THROUGH
-// NOT MODULARIZED
+// DO NOT REUSE:  bad code.
 
 import * as TWEEN from "@tweenjs/tween.js";
 import * as WP from "/src/UI-Features/weaponsmith/weapons.js";
 import * as PLANT from "./plant.js";
+import * as UTILS from "./utils.js";
+import * as ENEMY from "./enemy.js";
+import * as PF from "./pathfinder.js";
 export class TileMapRenderer {
   constructor(
     tileMap,
@@ -120,9 +121,16 @@ export class TileMapRenderer {
     this.maxInventorySize = 10;
     this.inventory = [];
     this.weapons = [];
-
+    this.currentWeapon = null;
     // more ui shenanigans
     this.tweenGroup = new TWEEN.Group(); // womp global depr
+    // guns guns guns
+    this.enableGun = true;
+    // pve
+    this.enemies = [];
+    this.SAFE_ZONE = 100;
+    this.UPDATE_PATH_CYCLE = 10; // update path every 10 cycles
+    this.nRenderCycles = 0;
   }
 
   async init() {
@@ -133,6 +141,8 @@ export class TileMapRenderer {
     this.width = this.canvas.width;
     this.height = this.canvas.height;
     this.interactUI.style.top = this.height * 1.2 + "px";
+    this.grid = this.buildAstarGrid();
+    console.log("Grid", this.grid);
     this.playerTiles = await this.sliceSpritesheetWithIDs(
       this.playerSpritesheet,
       32,
@@ -171,7 +181,7 @@ export class TileMapRenderer {
       y: this.height / 2 - 200,
     };
 
-    this.minInteractionDistance = this.tileWidth * this.scale * 2;
+    this.minInteractionDistance = this.tileWidth * this.scale * 1.5;
 
     this.animate();
 
@@ -182,31 +192,33 @@ export class TileMapRenderer {
 
     this.fillShop(this.buyAbleWeapons);
     this.syncMoney();
+    this.teleportPlayer(0, 0);
+    this.cheatyGetGun();
+    this.initGun();
   }
 
   // ANIMATE //
   animate() {
-    // console.log("cam", this.camera);
-    // console.log("player", this.player);
-    // console.log("offset", this.offsetX, this.offsetY);
-    // console.log("playerOffset", this.playerOffsetX, this.playerOffsetY);
-    // console.log(
-    //   "player and offset",
-    //   this.player.x + this.offsetX,
-    //   this.player.y + this.offsetY,
-    // );
-    // console.log(
-    //   "tileXY",
-    //   this.getTilePosition(this.width / 2, this.height / 2),
-    // );
+    this.nRenderCycles++;
     this.deltaT = Date.now() - this.lastT;
     this.lastT = Date.now();
     this.ctx.clearRect(0, 0, this.width, this.height);
     this.drawAllLayers();
     this.drawAndUpdatePlants(); // plant growth && draw
+    if (this.enableGun && this.currentWeapon) {
+      this.currentWeapon.updateProjectiles();
+    }
+    this.projectileCollisionDetection();
     this.drawPlayer();
+    this.drawAllEnemies();
     this.drawDayNightCycle();
-    // this.debugPlayerDot();
+    this.debugPlayerDot();
+    if (this.nRenderCycles >= this.UPDATE_PATH_CYCLE) {
+      this.nRenderCycles = 0;
+      if (this.enemies.length > 0) {
+        this.enemyPathfindUpdate();
+      }
+    }
     let interactible = this.findClosestInteractible();
     if (interactible) {
       // console.log(interactible);
@@ -230,6 +242,11 @@ export class TileMapRenderer {
   }
 
   update() {
+    // beautiful beautiful beautiful
+    // const tile = this.getTilePosition(this.width / 2, this.height / 2);
+    // console.log("tile", tile);
+    // console.log("tileoffset", this.getTileOffset(tile.x, tile.y));
+    // console.log("offset", this.offsetX, this.offsetY);
     let oldX = this.player.x;
     let oldY = this.player.y;
     let oldLastDirection = this.lastDirection;
@@ -583,6 +600,24 @@ export class TileMapRenderer {
       (screenY + this.offsetY) / (this.tileWidth * this.scale * this.zoom);
     return { x: tileX, y: tileY };
   }
+
+  getTileOffset(tileX, tileY) {
+    const offsetX =
+      tileX * this.tileWidth * this.scale * this.zoom - this.width / 2;
+    const offsetY =
+      tileY * this.tileWidth * this.scale * this.zoom - this.height / 2;
+    return { offsetX, offsetY };
+  }
+
+  // TELEPORT //
+  teleportPlayer(x, y) {
+    // ABS TILE COORDs!!!
+    let newOffset = this.getTileOffset(x, y);
+
+    this.player.x = newOffset.offsetX;
+    this.player.y = newOffset.offsetY;
+  }
+
   debugPlayerDot() {
     this.ctx.fillStyle = "red";
     this.ctx.fillRect(
@@ -775,6 +810,52 @@ export class TileMapRenderer {
     }
 
     return collisionX || collisionY;
+  }
+
+  // from pong
+  circleRect(a, b) {
+    const EPSILON = 0.0001; // margin of error
+    // A IS THE CIRCLE
+    let cx = a.x;
+    let cy = a.y;
+    let radius = a.radius;
+
+    // B IS THE RECTANGLE
+    let rx = b.x - b.width / 2;
+    let ry = b.y - b.height / 2;
+    let rw = b.width;
+    let rh = b.height;
+
+    // nearest point rectangle to the circle center
+    let testX = cx;
+    let testY = cy;
+
+    if (cx < rx) {
+      testX = rx;
+    } else if (cx > rx + rw) {
+      testX = rx + rw;
+    }
+    if (cy < ry) {
+      testY = ry;
+    } else if (cy > ry + rh) {
+      testY = ry + rh;
+    }
+
+    // dist between circle center & nearest point on rect
+    let distX = cx - testX;
+    let distY = cy - testY;
+    let distance = Math.sqrt(distX * distX + distY * distY);
+
+    let isColliding = distance <= radius + EPSILON;
+
+    let normal = new UTILS.Vec2(0, 0);
+    if (isColliding && distance > EPSILON) {
+      // i love NaN
+      normal.x = distX / distance;
+      normal.y = distY / distance;
+    }
+
+    return { collision: isColliding, normal: normal };
   }
 
   findClosestInteractible() {
@@ -1111,6 +1192,169 @@ export class TileMapRenderer {
     }
   }
 
+  // 🦅🦅🦅🦅🦅🦅🦅🦅🦅//
+  // GUNs //
+  initGun() {
+    if (this.weapons.length > 0 && !this.currentWeapon) {
+      this.currentWeapon = this.weapons[0];
+      this.currentWeapon.assignCanvas(this.canvas);
+    }
+    if (this.currentWeapon) {
+      this.currentWeapon.assignCanvas(this.canvas);
+    }
+  }
+
+  cheatyGetGun() {
+    this.currentWeapon = WP.starterWeapons[1];
+  }
+
+  projectileCollisionDetection() {
+    // REDO
+    if (!this.currentWeapon) return;
+    if (!this.enableGun) return;
+
+    const projectiles = this.currentWeapon.projectiles;
+
+    for (let i of projectiles) {
+      for (let layer of this.tileMap.layers) {
+        // TODO: reduce time complexity ... how? currently O(n^2)
+        if (layer.collider) {
+          for (let tile of layer.tiles) {
+            const circle = {
+              x: i.position.x,
+              y: i.position.y,
+              radius: 1, // TODO: make this a property of the projectile
+            };
+            // console.log(circle);
+            const rect = {
+              x: tile.x * this.tileWidth * this.scale - this.offsetX,
+              y: tile.y * this.tileWidth * this.scale - this.offsetY,
+              width: this.tileWidth * this.scale,
+              height: this.tileWidth * this.scale,
+            };
+            // this.ctx.fillStyle = "rgba(0,0,255,0.1)";
+            // this.ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+
+            const collision = this.circleRect(circle, rect);
+            if (collision.collision) {
+              i.alive = false;
+              console.log("HIT");
+            }
+          }
+        }
+      }
+    }
+  }
+
+  spawnEnemies() {
+    const mapWidth = this.tileMap.mapWidth;
+    const mapHeight = this.tileMap.mapHeight;
+    const playerSafeZone = {
+      x1: this.player.x - this.SAFE_ZONE / 2,
+      x2: this.player.x + this.SAFE_ZONE / 2,
+      y1: this.player.y - this.SAFE_ZONE / 2,
+      y2: this.player.y + this.SAFE_ZONE / 2,
+    };
+
+    let validPositionFound = false;
+    let spawnX, spawnY;
+
+    while (!validPositionFound) {
+      spawnX = Math.random() * mapWidth;
+      spawnY = Math.random() * mapHeight;
+
+      const isOutsideSafeZone =
+        spawnX < playerSafeZone.x1 ||
+        spawnX > playerSafeZone.x2 ||
+        spawnY < playerSafeZone.y1 ||
+        spawnY > playerSafeZone.y2;
+
+      if (!isOutsideSafeZone) continue;
+
+      let isInsideTile = false;
+      for (let layer of this.tileMap.layers) {
+        if (layer.collider) {
+          for (let tile of layer.tiles) {
+            const tileLeft = tile.x;
+            const tileRight = tile.x + 1;
+            const tileTop = tile.y;
+            const tileBottom = tile.y + 1;
+
+            if (
+              spawnX >= tileLeft &&
+              spawnX < tileRight &&
+              spawnY >= tileTop &&
+              spawnY < tileBottom
+            ) {
+              isInsideTile = true;
+              break;
+            }
+          }
+        }
+        if (isInsideTile) break;
+      }
+      if (!isInsideTile) {
+        validPositionFound = true;
+      }
+    }
+    this.spawnEnemyAt(spawnX, spawnY);
+  }
+
+  spawnEnemyAt(x, y, maxHealth = 100) {
+    const enemy = new ENEMY.Enemy(maxHealth, 5, 0.25, x, y);
+    this.enemies.push(enemy);
+    this.enemyPathfindUpdate();
+  }
+
+  drawAllEnemies() {
+    for (let enemy of this.enemies) {
+      enemy.update();
+      enemy.draw(
+        this.ctx,
+        enemy.x * this.tileWidth * this.scale - this.offsetX,
+        enemy.y * this.tileWidth * this.scale - this.offsetY,
+      );
+      console.log(enemy.x, enemy.y);
+      console.log(
+        enemy.x * this.tileWidth * this.scale - this.offsetX,
+        enemy.y * this.tileWidth * this.scale - this.offsetY,
+      );
+    }
+  }
+
+  enemyPathfindUpdate() {
+    if (!this.grid) {
+      this.grid = this.buildAstarGrid();
+    }
+    const tilePos = this.getTilePosition(this.width / 2, this.height / 2);
+    const end = { x: Math.floor(tilePos.x), y: Math.floor(tilePos.y) };
+    for (let enemy of this.enemies) {
+      const start = { x: Math.floor(enemy.x), y: Math.floor(enemy.y) };
+
+      enemy.setPath(PF.aStar(this.grid, start, end));
+    }
+  }
+
+  buildAstarGrid() {
+    let grid = [];
+    for (let i = 0; i < this.tileMap.mapWidth; i++) {
+      grid[i] = [];
+      for (let j = 0; j < this.tileMap.mapHeight; j++) {
+        grid[i][j] = 0;
+      }
+    }
+
+    for (let layer of this.tileMap.layers) {
+      if (layer.collider) {
+        for (let tile of layer.tiles) {
+          grid[tile.x][tile.y] = 1;
+        }
+      }
+    }
+
+    return grid;
+  }
+
   // IMAGE MANIP //
   /**
    * Asynchronously slices a spritesheet image into individual tiles and assigns each tile a unique ID.
@@ -1322,6 +1566,16 @@ export class TileMapRenderer {
       if (document.hidden) {
         console.log("PAUSED");
         this.keys = {};
+      }
+    });
+
+    this.canvas.addEventListener("click", (e) => {
+      this.spawnEnemies();
+      const target = new UTILS.Vec2(e.clientX, e.clientY);
+      const origin = new UTILS.Vec2(this.width / 2, this.height / 2);
+      if (this.isUIOpen) return;
+      if (this.enableGun && this.currentWeapon) {
+        this.currentWeapon.shoot(origin, target);
       }
     });
 

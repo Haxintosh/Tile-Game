@@ -27,7 +27,7 @@ function genRandomMap(size = 100) {
   for (var i = 0; i < size; i++) {
     map.push([]);
     for (var j = 0; j < size; j++) {
-      map[i].push(Math.random() > 0.8 ? 1 : 0); // .93 is optimal
+      map[i].push(Math.random() > 0.8 ? 1 : 0); // .93 is optimal,
     }
   }
   return map;

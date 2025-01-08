@@ -18,7 +18,7 @@ export class Animation {
     this.isLoop = isLoop;
 
     this.isReverse = isReverse;
-    this.onUpdate = onUpdate; // execute onend
+    this.onUpdate = onUpdate; // execute onupdate
     this.onEnd = onEnd; // execute onend
 
     // update properties
