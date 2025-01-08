@@ -101,7 +101,7 @@ export class Weapon {
 
     this.ammo--;
     this.projectiles = this.projectiles.concat(projectiles);
-    console.log(this.projectiles);
+    // console.log(this.projectiles);
     this.lastFired = Date.now();
     return projectiles;
   }
@@ -122,11 +122,7 @@ export class Weapon {
   }
 
   cleanProjectilesArray() {
-    for (let i = 0; i < this.projectiles.length; i++) {
-      if (!this.projectiles[i].alive) {
-        this.projectiles.splice(i, 1);
-      }
-    }
+    this.projectiles = this.projectiles.filter((p) => p.alive);
   }
 
   updateProjectiles() {
@@ -134,6 +130,7 @@ export class Weapon {
     for (let i = 0; i < this.projectiles.length; i++) {
       this.projectiles[i].update();
     }
+    this.cleanProjectilesArray();
   }
 
   assignCanvas(canvasElement) {

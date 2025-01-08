@@ -129,7 +129,7 @@ export class TileMapRenderer {
     // pve
     this.enemies = [];
     this.SAFE_ZONE = 100;
-    this.UPDATE_PATH_CYCLE = 10; // update path every 10 cycles
+    this.UPDATE_PATH_CYCLE = 100; // update path every 10 cycles
     this.nRenderCycles = 0;
   }
 
@@ -213,6 +213,9 @@ export class TileMapRenderer {
     this.drawAllEnemies();
     this.drawDayNightCycle();
     this.debugPlayerDot();
+    this.drawGrid();
+    this.drawEnemyPath();
+    // this.drawEnemyPath();
     if (this.nRenderCycles >= this.UPDATE_PATH_CYCLE) {
       this.nRenderCycles = 0;
       if (this.enemies.length > 0) {
@@ -1238,7 +1241,7 @@ export class TileMapRenderer {
             const collision = this.circleRect(circle, rect);
             if (collision.collision) {
               i.alive = false;
-              console.log("HIT");
+              // console.log("HIT");
             }
           }
         }
@@ -1297,7 +1300,7 @@ export class TileMapRenderer {
         validPositionFound = true;
       }
     }
-    this.spawnEnemyAt(spawnX, spawnY);
+    this.spawnEnemyAt(Math.floor(spawnX), Math.floor(spawnY));
   }
 
   spawnEnemyAt(x, y, maxHealth = 100) {
@@ -1314,11 +1317,11 @@ export class TileMapRenderer {
         enemy.x * this.tileWidth * this.scale - this.offsetX,
         enemy.y * this.tileWidth * this.scale - this.offsetY,
       );
-      console.log(enemy.x, enemy.y);
-      console.log(
-        enemy.x * this.tileWidth * this.scale - this.offsetX,
-        enemy.y * this.tileWidth * this.scale - this.offsetY,
-      );
+      // console.log(enemy.x, enemy.y);
+      // console.log(
+      //   enemy.x * this.tileWidth * this.scale - this.offsetX,
+      //   enemy.y * this.tileWidth * this.scale - this.offsetY,
+      // );
     }
   }
 
@@ -1330,7 +1333,7 @@ export class TileMapRenderer {
     const end = { x: Math.floor(tilePos.x), y: Math.floor(tilePos.y) };
     for (let enemy of this.enemies) {
       const start = { x: Math.floor(enemy.x), y: Math.floor(enemy.y) };
-
+      console.log(start, end);
       enemy.setPath(PF.aStar(this.grid, start, end));
     }
   }
@@ -1347,12 +1350,62 @@ export class TileMapRenderer {
     for (let layer of this.tileMap.layers) {
       if (layer.collider) {
         for (let tile of layer.tiles) {
-          grid[tile.x][tile.y] = 1;
+          grid[tile.y][tile.x] = 1;
         }
       }
     }
 
     return grid;
+  }
+
+  drawEnemyPath() {
+    //debug
+    if (!this.grid) return;
+    if (!this.enemies.length) return;
+
+    for (let enemy of this.enemies) {
+      if (!enemy.path) continue;
+      for (let i of enemy.path) {
+        this.drawSquareFromTileXY(i.x, i.y);
+      }
+      if (enemy.path.length) {
+        this.drawSquareFromTileXYContrast(enemy.path[0].x, enemy.path[0].y); // start
+        this.drawSquareFromTileXYContrast(
+          enemy.path[enemy.path.length - 1].x,
+          enemy.path[enemy.path.length - 1].y,
+        ); // end
+      }
+    }
+  }
+  drawSquareFromTileXY(x, y) {
+    this.ctx.fillStyle = "rgba(0,0,255,0.5)";
+    this.ctx.fillRect(
+      x * this.tileWidth * this.scale - this.offsetX,
+      y * this.tileWidth * this.scale - this.offsetY,
+      this.tileWidth * this.scale,
+      this.tileWidth * this.scale,
+    );
+  }
+  drawSquareFromTileXYContrast(x, y) {
+    this.ctx.fillStyle = "rgba(255,0,0,0.5)";
+    this.ctx.fillRect(
+      x * this.tileWidth * this.scale - this.offsetX,
+      y * this.tileWidth * this.scale - this.offsetY,
+      this.tileWidth * this.scale,
+      this.tileWidth * this.scale,
+    );
+  }
+
+  drawGrid() {
+    if (this.grid) {
+      for (let i = 0; i < this.grid.length; i++) {
+        for (let j = 0; j < this.grid[i].length; j++) {
+          if (this.grid[i][j] === 1) {
+            this.drawSquareFromTileXY(j, i);
+          }
+        }
+      }
+    }
   }
 
   // IMAGE MANIP //
