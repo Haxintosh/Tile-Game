@@ -13,7 +13,7 @@ export class Enemy {
 
   draw(ctx, x, y) {
     ctx.fillStyle = "red";
-    ctx.fillRect(x, y, 10, 10);
+    ctx.fillRect(x, y, 50, 50);
   }
 
   update() {

@@ -129,8 +129,12 @@ export class TileMapRenderer {
     // pve
     this.enemies = [];
     this.SAFE_ZONE = 100;
-    this.UPDATE_PATH_CYCLE = 100; // update path every 10 cycles
+    this.UPDATE_PATH_CYCLE = 100; // update path every 100 render cycles
     this.nRenderCycles = 0;
+
+    // pathfind
+    this.grid = null;
+    this.ogGrid = null;
   }
 
   async init() {
@@ -824,8 +828,8 @@ export class TileMapRenderer {
     let radius = a.radius;
 
     // B IS THE RECTANGLE
-    let rx = b.x - b.width / 2;
-    let ry = b.y - b.height / 2;
+    let rx = b.x;
+    let ry = b.y;
     let rw = b.width;
     let rh = b.height;
 
@@ -1304,7 +1308,7 @@ export class TileMapRenderer {
   }
 
   spawnEnemyAt(x, y, maxHealth = 100) {
-    const enemy = new ENEMY.Enemy(maxHealth, 5, 0.25, x, y);
+    const enemy = new ENEMY.Enemy(maxHealth, 5, 0.05, x, y);
     this.enemies.push(enemy);
     this.enemyPathfindUpdate();
   }
@@ -1339,6 +1343,7 @@ export class TileMapRenderer {
   }
 
   buildAstarGrid() {
+    // stage 1: only colliders
     let grid = [];
     for (let i = 0; i < this.tileMap.mapWidth; i++) {
       grid[i] = [];
@@ -1354,7 +1359,11 @@ export class TileMapRenderer {
         }
       }
     }
+    if (!this.ogGrid) {
+      this.ogGrid = grid;
+    }
 
+    // stage 2: add path to grid to prevent enemy collision
     return grid;
   }
 

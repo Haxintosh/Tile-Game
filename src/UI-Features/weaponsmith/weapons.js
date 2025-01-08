@@ -207,8 +207,8 @@ export const starterWeapons = [
     "1_32", // image
     "Powerful at close range, spreads projectiles for maximum damage.", // desc
     "#FF4500", // projectileColor
-    10, // spread
-    0.4, // spreadAngle
+    1, // spread
+    0.2, // spreadAngle
     8, // numProjectiles
     6, // magSize
     1500, // reloadTime
