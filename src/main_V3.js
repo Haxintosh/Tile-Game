@@ -77,6 +77,8 @@ async function init() {
     images.playerWalk,
     images.playerRun,
     uiCanvas,
+    images.vegStage5012,
+    images.vegStage34,
   );
   await tilemap.init();
   isLoaded = true;

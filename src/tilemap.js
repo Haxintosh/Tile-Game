@@ -83,6 +83,7 @@ export class TileMapRenderer {
     this.currentCollisionBlock = null;
 
     this.plants = []; // arr<plant>
+    this.plantTiles = null;
 
     this.prevX = 0;
     this.prevY = 0;
@@ -145,6 +146,20 @@ export class TileMapRenderer {
     this.playerTiles = this.organizePlayerTileSet(4, this.playerTiles);
     this.walkTiles = this.organizePlayerTileSet(8, this.walkTiles);
     this.runTiles = this.organizePlayerTileSet(8, this.runTiles);
+
+    this.veg5012 = await this.sliceSpritesheetWithIDs(this.vegSpritesheet5012);
+    this.veg34 = await this.sliceSpritesheetWithIDsV2(
+      this.vegSpritesheet34,
+      16,
+      32,
+    );
+    let tempObj = {};
+    for (let i = 0; i < Object.keys(this.veg5012).length; i++) {
+      tempObj[i] = this.addPaddingOnTop(this.veg5012[i]);
+    }
+    this.veg5012 = tempObj;
+    this.organizePlantTileset();
+    this.plantParse();
     this.addHooks();
     this.debug();
 
@@ -619,6 +634,52 @@ export class TileMapRenderer {
     return newPlayerTileSet;
   }
 
+  organizePlantTileset() {
+    const tilesets = this.veg5012; // First tileset
+    const tileset34 = this.veg34; // Second tileset
+
+    // Initialize the plantTileSet with vegetable keys
+    let plantTileSet = {
+      CARROT: {},
+      CAULI: {},
+      PUMPKIN: {},
+      SUNFLOWER: {},
+      RADISH: {},
+      PARSNIP: {},
+      POTATO: {},
+      CABBAGE: {},
+      BEETROOT: {},
+      WHEAT: {},
+      KALE: {},
+    };
+
+    const vegetables = Object.keys(plantTileSet);
+    const tiles = Object.values(tilesets);
+    const tiles34 = Object.values(tileset34);
+
+    vegetables.forEach((veg, vegIndex) => {
+      // veg5012
+      const startIdx = vegIndex * 4;
+      const group = tiles.slice(startIdx, startIdx + 4);
+
+      plantTileSet[veg][5] = group[0]; // tile 5
+      plantTileSet[veg][0] = group[1]; // tile 0
+      plantTileSet[veg][1] = group[2]; // tile 1
+      plantTileSet[veg][2] = group[3]; // tile 2
+
+      // veg34
+      const startIdx34 = vegIndex * 2;
+      const group34 = tiles34.slice(startIdx34, startIdx34 + 2);
+
+      plantTileSet[veg][3] = group34[0]; // tile 3
+      plantTileSet[veg][4] = group34[1]; // tile 4
+    });
+
+    console.log("Plant Tileset", plantTileSet);
+    this.plantTiles = plantTileSet;
+    // return plantTileSet;
+  }
+
   centerMap() {
     this.offsetX =
       (this.width - this.tileMap.mapWidth * this.tileWidth * this.scale) / 2;
@@ -1012,13 +1073,11 @@ export class TileMapRenderer {
     for (let tile of plantLayer.tiles) {
       const plantType = plantMap[tile.id];
       if (!plantType) continue;
-      const plant = {
-        // TODO : replace with actual plant object
-        x: tile.x,
-        y: tile.y,
-        type: plantType,
-        stage: 0,
-      };
+      const plant = new PLANT.Plant(
+        plantType,
+        { x: tile.x, y: tile.y },
+        this.plantTiles[plantType],
+      );
       this.plants.push(plant);
     }
   }
@@ -1104,6 +1163,64 @@ export class TileMapRenderer {
     return tiles;
   }
 
+  async sliceSpritesheetWithIDsV2(image, tileWidth = 16, tileHeight = 16) {
+    const tiles = {};
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d", {
+      willReadFrequently: true,
+    });
+    const rows = Math.floor(image.height / tileHeight);
+    const cols = Math.floor(image.width / tileWidth);
+
+    canvas.width = tileWidth;
+    canvas.height = tileHeight;
+
+    let id = 0;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        context.clearRect(0, 0, tileWidth, tileHeight);
+        context.drawImage(
+          image,
+          col * tileWidth,
+          row * tileHeight,
+          tileWidth,
+          tileHeight,
+          0,
+          0,
+          tileWidth,
+          tileHeight,
+        );
+
+        const imageData = context.getImageData(0, 0, tileWidth, tileHeight);
+        const pixels = imageData.data;
+        let isTransparent = true;
+        // TODO: accelerate perf
+        for (let i = 3; i < pixels.length; i += 4) {
+          if (pixels[i] !== 0) {
+            isTransparent = false;
+            break;
+          }
+        }
+
+        if (!isTransparent) {
+          const dataURL = canvas.toDataURL();
+
+          const tileImage = await new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.src = dataURL;
+          });
+
+          tiles[id] = tileImage;
+          id++;
+        }
+      }
+    }
+
+    return tiles;
+  }
+
   /**
    * Creates a horizontally mirrored version of the input image on a new canvas.
    *
@@ -1167,6 +1284,15 @@ export class TileMapRenderer {
     const paddedImage = new Image();
     paddedImage.src = canvas.toDataURL();
     return paddedImage;
+  }
+
+  consoleImg(base64) {
+    console.log(
+      "%c Image",
+      "background-image: url('data:image/png;base64," +
+        base64 +
+        "'); background-size: 32px 32px; line-height: 32px; font-size: 1px; padding: 32px;",
+    );
   }
 
   // HOOKS //
