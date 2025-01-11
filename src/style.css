@@ -3,13 +3,13 @@
     /* margin: 0;
     padding: 0;
     box-sizing: border-box; */
-    cursor: url("UI/ICONS/cursor.png"), auto;
+    cursor: url("/Tile-Game/UI/ICONS/cursor.png"), auto;
     font-family: "04b03";
 }
 
 @font-face {
     font-family: "04b03";
-    src: url("UI/04b03.ttf");
+    src: url("/Tile-Game/UI/04b03.ttf");
 }
 
 #interactableUI {
