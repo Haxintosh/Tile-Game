@@ -3,7 +3,7 @@
 // or scale img to display size onload
 
 // DO NOT REUSE:  bad code.
-
+// storming hackathon no sleep tonight storms storms of storms rusts and ruin merciful domi
 import * as TWEEN from "@tweenjs/tween.js";
 import * as WP from "/src/UI-Features/weaponsmith/weapons.js";
 import * as PLANT from "./plant.js";
@@ -128,8 +128,8 @@ export class TileMapRenderer {
     this.enableGun = true;
     // pve
     this.enemies = [];
-    this.SAFE_ZONE = 100;
-    this.UPDATE_PATH_CYCLE = 100; // update path every 240 render cycles
+    this.SAFE_ZONE = 400;
+    this.UPDATE_PATH_CYCLE = 20; // update path every 240 render cycles
     this.nRenderCycles = 0;
 
     // pathfind
@@ -210,15 +210,16 @@ export class TileMapRenderer {
     this.drawAllLayers();
     this.drawAndUpdatePlants(); // plant growth && draw
     if (this.enableGun && this.currentWeapon) {
-      this.currentWeapon.updateProjectiles();
+      this.currentWeapon.updateProjectiles(this.tileWidth, this.scale);
+      this.drawBullets();
     }
     this.projectileCollisionDetection();
     this.drawPlayer();
     this.drawAllEnemies();
     this.drawDayNightCycle();
     this.debugPlayerDot();
-    this.drawGrid();
-    this.drawEnemyPath();
+    // this.drawGrid();
+    // this.drawEnemyPath();
     // this.grid = this.buildAstarGrid();
     if (this.nRenderCycles >= this.UPDATE_PATH_CYCLE) {
       this.nRenderCycles = 0;
@@ -1230,14 +1231,14 @@ export class TileMapRenderer {
             const circle = {
               x: i.position.x,
               y: i.position.y,
-              radius: 1, // TODO: make this a property of the projectile
+              radius: 0.2, // TODO: make this a property of the projectile
             };
             // console.log(circle);
             const rect = {
-              x: tile.x * this.tileWidth * this.scale - this.offsetX,
-              y: tile.y * this.tileWidth * this.scale - this.offsetY,
-              width: this.tileWidth * this.scale,
-              height: this.tileWidth * this.scale,
+              x: tile.x,
+              y: tile.y,
+              width: 1,
+              height: 1,
             };
             // this.ctx.fillStyle = "rgba(0,0,255,0.1)";
             // this.ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
@@ -1321,11 +1322,6 @@ export class TileMapRenderer {
         enemy.x * this.tileWidth * this.scale - this.offsetX,
         enemy.y * this.tileWidth * this.scale - this.offsetY,
       );
-      // console.log(enemy.x, enemy.y);
-      // console.log(
-      //   enemy.x * this.tileWidth * this.scale - this.offsetX,
-      //   enemy.y * this.tileWidth * this.scale - this.offsetY,
-      // );
     }
   }
 
@@ -1338,7 +1334,7 @@ export class TileMapRenderer {
     const end = { x: Math.floor(tilePos.x), y: Math.floor(tilePos.y) };
 
     for (let enemy of this.enemies) {
-      const start = { x: Math.floor(enemy.x), y: Math.floor(enemy.y) };
+      const start = { x: Math.round(enemy.x), y: Math.round(enemy.y) };
 
       // by appoinment only
       if (enemy.path) {
@@ -1353,7 +1349,7 @@ export class TileMapRenderer {
       const newPath = PF.aStar(this.grid, start, end);
       const actualPathEnd = newPath.at(-1);
       if (actualPathEnd) {
-        if (actualPathEnd.x === tilePos.x && actualPathEnd.y === tilePos.y) {
+        if (actualPathEnd.x === end.x && actualPathEnd.y === end.y) {
           newPath.pop();
         }
       }
@@ -1364,7 +1360,8 @@ export class TileMapRenderer {
         }
         this.grid[step.y][step.x] = 1;
       }
-
+      console.log(newPath, tilePos);
+      // newPath.pop(); // remove player position from path
       enemy.setPath(newPath);
     }
   }
@@ -1376,14 +1373,10 @@ export class TileMapRenderer {
       for (let enemy of this.enemies) {
         if (enemy.path) {
           for (let step of enemy.path) {
-            grid[step.y][step.x] = 0; // Reserve the path
+            grid[step.y][step.x] = 0; // reserve the path
           }
         }
       }
-
-      // const playerXY = this.getTilePosition(this.width / 2, this.height / 2);
-      // grid[Math.floor(playerXY.y)][Math.floor(playerXY.x)] = 0;
-
       return grid;
     }
     let grid = [];
@@ -1456,6 +1449,22 @@ export class TileMapRenderer {
             this.drawSquareFromTileXY(j, i);
           }
         }
+      }
+    }
+  }
+
+  drawBullets() {
+    if (this.currentWeapon) {
+      for (let bullet of this.currentWeapon.projectiles) {
+        const pos = bullet.position;
+
+        this.ctx.fillStyle = bullet.color;
+        this.ctx.fillRect(
+          pos.x * this.tileWidth * this.scale - this.offsetX,
+          pos.y * this.tileWidth * this.scale - this.offsetY,
+          10,
+          10,
+        );
       }
     }
   }
@@ -1676,8 +1685,15 @@ export class TileMapRenderer {
 
     this.canvas.addEventListener("click", (e) => {
       this.spawnEnemies();
-      const target = new UTILS.Vec2(e.clientX, e.clientY);
-      const origin = new UTILS.Vec2(this.width / 2, this.height / 2);
+      // let target = new UTILS.Vec2(e.clientX, e.clientY);
+      // let origin = new UTILS.Vec2(this.width / 2, this.height / 2);
+
+      const tilePos = this.getTilePosition(e.clientX, e.clientY);
+      const target = new UTILS.Vec2(tilePos.x, tilePos.y);
+
+      const playerPos = this.getTilePosition(this.width / 2, this.height / 2);
+      const origin = new UTILS.Vec2(playerPos.x, playerPos.y);
+
       if (this.isUIOpen) return;
       if (this.enableGun && this.currentWeapon) {
         this.currentWeapon.shoot(origin, target);

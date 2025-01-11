@@ -17,9 +17,10 @@ class Node {
 }
 
 // A* //
-export function aStar(grid, start, goal) {
+export function aStar(grid, start, goal, congregateDistance = 2) {
   const openList = [];
   const closedList = [];
+  let closestNode = null;
 
   // manhattan distance heuristic h(n) = |x1 - x2| + |y1 - y2|
   const heuristic = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
@@ -32,7 +33,7 @@ export function aStar(grid, start, goal) {
     const current = openList.shift();
 
     // if goal reached, reconstruct path
-    if (current.x === goal.x && current.y === goal.y) {
+    if (heuristic(current, goal) <= congregateDistance) {
       const path = [];
       let temp = current;
       while (temp) {
@@ -40,6 +41,14 @@ export function aStar(grid, start, goal) {
         temp = temp.parent;
       }
       return path;
+    }
+
+    // Update closest node if current node is closer to the goal
+    if (
+      !closestNode ||
+      heuristic(current, goal) < heuristic(closestNode, goal)
+    ) {
+      closestNode = current;
     }
 
     closedList.push(current);
@@ -70,7 +79,7 @@ export function aStar(grid, start, goal) {
       const h = heuristic(neighbor, goal);
       const neighborNode = new Node(neighbor.x, neighbor.y, g, h, current);
 
-      // ehck if neighbor is already in open list,
+      // check if neighbor is already in open list,
       // if so, check if new path is better
       const openNode = openList.find(
         (node) => node.x === neighbor.x && node.y === neighbor.y,
@@ -85,6 +94,17 @@ export function aStar(grid, start, goal) {
         openList.push(neighborNode);
       }
     }
+  }
+
+  // congregation dist not reached, return closest node
+  if (closestNode) {
+    const path = [];
+    let temp = closestNode;
+    while (temp) {
+      path.unshift({ x: temp.x, y: temp.y });
+      temp = temp.parent;
+    }
+    return path;
   }
 
   return []; // hopefully this never happens

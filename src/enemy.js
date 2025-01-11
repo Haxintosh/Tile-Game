@@ -13,7 +13,7 @@ export class Enemy {
 
   draw(ctx, x, y) {
     ctx.fillStyle = "red";
-    ctx.fillRect(x, y, 50, 50);
+    ctx.fillRect(x, y, 20, 20);
   }
 
   update() {
@@ -42,6 +42,8 @@ export class Enemy {
 
   setPath(path) {
     this.path = path;
-    this.currentPathIndex = 0;
+    // check if already in movement to avoid teleporting
+    // if (Math.floor(this.x))
+    this.currentPathIndex = 1;
   }
 }

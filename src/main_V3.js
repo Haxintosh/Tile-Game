@@ -71,7 +71,7 @@ async function init() {
   tilemap = new TILEMAP.TileMapRenderer(
     json,
     images.mapSpritesheet,
-    0.25,
+    0.5,
     canvas,
     images.playerIdle,
     images.playerWalk,

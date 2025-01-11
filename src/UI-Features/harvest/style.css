@@ -1,0 +1,88 @@
+@font-face {
+    font-family: "04b03";
+    src: url("/UI/04b03.ttf");
+}
+
+.currWeaponIndicatorContainer {
+    /* position: absolute; */
+    top: 0;
+    left: 0;
+    width: 100px;
+    max-width: 100px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    font-family: "04b03";
+}
+.currWeaponTitleContainer {
+    width: 100%;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2em;
+    font-weight: bold;
+}
+
+.seperatorBar {
+    width: 100%;
+    height: 0.3em;
+    background-color: black;
+}
+
+.currWeaponIndicatorContainer {
+    width: 100%;
+    height: fit-content;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.ammoContainer {
+    width: 100%;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.reloadStatusContainer {
+    width: 100%;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.reloadStatusIndicator {
+    width: 50%;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    background-color: black;
+    z-index: 2;
+}
+
+.reloadStatusBG {
+    width: 100%;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    background-color: rgba(192, 192, 192, 0.5);
+    z-index: 1;
+    /* border: 1px solid black; */
+}

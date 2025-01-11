@@ -125,10 +125,10 @@ export class Weapon {
     this.projectiles = this.projectiles.filter((p) => p.alive);
   }
 
-  updateProjectiles() {
+  updateProjectiles(tileWidth, scale) {
     // this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     for (let i = 0; i < this.projectiles.length; i++) {
-      this.projectiles[i].update();
+      this.projectiles[i].update(tileWidth, scale);
     }
     this.cleanProjectilesArray();
   }
@@ -153,33 +153,45 @@ export class Projectile {
     this.alive = true;
   }
 
-  update() {
+  update(tileWidth, scale) {
     if (!this.alive) return;
-    this.position = this.position.add(this.direction.scale(this.speed));
+    this.position = this.position.add(
+      this.direction.scale((this.speed * 2) / (tileWidth * scale)),
+    );
 
     // check if projectile has reached max range
-    if (this.origin.distance(this.position) > this.range) {
+    if (
+      this.origin.distance(this.position) * tileWidth * scale >
+      this.range * 2
+    ) {
       this.alive = false;
     }
-
-    this.draw();
   }
 
-  draw() {
-    if (!this.ctx) return;
-    if (!this.alive) return;
-    this.ctx.beginPath();
-    this.ctx.arc(this.position.x, this.position.y, 8, 0, 2 * Math.PI);
-    this.ctx.fillStyle = this.color;
-    this.ctx.fill();
-  }
-
-  assignCanvas(canvasElement) {
-    this.canvas = canvasElement;
-    this.ctx = this.canvas.getContext("2d");
-  }
+  // draw(offsetX, offsetY, scale) {
+  //   if (!this.alive) return;
+  //   this.ctx.beginPath();
+  //   this.ctx.arc(this.position.x, this.position.y, 8 * scale, 0, 2 * Math.PI);
+  //   this.ctx.fillStyle = this.color;
+  //   this.ctx.fill();
+  // }
 }
 
+// deprecated in favour of draw in tilemap
+// draw() {
+//   if (!this.ctx) return;
+//   if (!this.alive) return;
+//   this.ctx.beginPath();
+//   this.ctx.arc(
+//     this.position.x + this.offsetX,
+//     this.position.y + this.offsetY,
+//     8,
+//     0,
+//     2 * Math.PI,
+//   );
+//   this.ctx.fillStyle = this.color;
+//   this.ctx.fill();
+// }
 export const starterWeapons = [
   new Weapon(
     "Pistol",
