@@ -316,3 +316,231 @@ canvas {
 .moneyIndContainer.down {
     top: -50px;
 }
+
+/* DERIVED */
+.currWeaponIndicatorContainer {
+    /* CSS IS A DUMPSTER FIRE HOTTER THAN THE CORE OF THE SUN,*/
+    /* IT HAS MORE IN COMMON WITH WRANGLING WITH A KID THAN IT HAS WITH PROGRAMMING */
+    position: relative;
+    width: 100%;
+    max-width: 250px;
+    height: fit-content;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-family: "04b03";
+    z-index: 200;
+}
+.currWeaponTitleContainer {
+    position: relative;
+    width: 100%;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2em;
+    font-weight: bold;
+}
+
+.seperatorBar {
+    position: relative;
+    width: 100%;
+    height: 0.3em;
+    background-color: black;
+}
+
+.ammoContainer {
+    position: relative;
+    width: 100%;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.reloadStatusContainer {
+    position: relative;
+    width: 100%;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.reloadStatusIndicator {
+    position: relative;
+    width: 50%;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    background-color: black;
+    z-index: 202;
+}
+
+.reloadStatusBG {
+    position: relative;
+    width: 100%;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    background-color: rgba(192, 192, 192, 0.5);
+    z-index: 1;
+    /* border: 1px solid black; */
+}
+
+.barContainer {
+    position: absolute;
+    top: 100%;
+    left: 10px;
+    transform: translate(0, -100%);
+    width: 350px;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    font-size: 1.5em;
+    font-weight: bold;
+    z-index: 301;
+    gap: 20px;
+}
+.healthBar {
+    gap: 5px;
+}
+.bar {
+    position: relative;
+    width: 100%;
+    height: 25px;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    /* background-color: rgba(192, 192, 192, 0.5); */
+    z-index: 1;
+    gap: 5px;
+}
+.healthBarBG {
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 250px;
+    height: 50px;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(192, 192, 192, 0.5);
+    z-index: 1;
+}
+
+.healthBarBar {
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    background-color: black;
+}
+
+.titleContainer {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, 0);
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 200px;
+    font-family: "04b03";
+    font-size: 2.5em;
+    z-index: 401;
+}
+
+.header {
+    font-size: 1.5em;
+}
+
+.timer {
+    font-size: 0.75em;
+}
+
+.mainPage1 {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+    font-family: "04b03";
+    font-size: 5em;
+    z-index: 500;
+    background-color: white;
+}
+
+.start {
+    cursor: pointer;
+    font-size: 0.5em;
+    padding: 10px;
+    border: 5px solid black;
+    background-color: white;
+    transition: background-color 0.3s;
+}
+
+.mainPage2 {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+    font-family: "04b03";
+    font-size: 5em;
+    z-index: 499;
+    background-color: white;
+}
+.mainPage3 {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+    font-family: "04b03";
+    font-size: 5em;
+    z-index: -1;
+    background-color: white;
+    display: none;
+}

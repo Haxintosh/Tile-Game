@@ -4,129 +4,204 @@
         <meta charset="UTF-8" />
         <link rel="icon" type="image/svg+xml" href="/vite.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Vite App</title>
+        <title>Straw Canyon</title>
     </head>
     <body>
-        <!-- DERIVED FROM src/UI-Features/weaponsmith/index.html -->
-        <div class="mainShopContainer" id="mainShopContainer">
-            <div class="headerContainer" id="headerContainer">Weaponsmith</div>
-            <div class="shopUiContainer">
-                <div class="scrollItemsContainer" id="scrollItemsContainer">
-                    <!-- <div class="itemContainer">Gun 1</div>
+        <div class="mainPage1" id="page1">
+            <div class="titlee">Straw Canyon</div>
+            <button class="start" id="induct">BEGIN!</button>
+        </div>
+        <div class="mainPage2" id="page2">
+            <div class="hdr2">Controls</div>
+            <div class="subhdr"> W A S D: MOVE</div>
+            <div class="subhdr"> E: INTERACT</div>
+            <div class="subhdr"> R: RELOAD</div>
+             <div class="subhdr"> LEFT CLICK: SHOOT</div>
+             <div class="subhdr"> Tip: Reload often!</div>
+             <div class="subhdr"> Tip: You can squeeze through corners!</div>
+
+            <button class="start" id="actStart">OK!</button>
+        </div>
+
+        <div class="mainPage3" id="page3">
+            <div class="titlee" id="success"></div>
+            <button class="start" id="reload" onclick="location.reload()">Replay</button>
+        </div>
+
+        <div class="titleContainer">
+            <div class="header" id="header">WAVE 1</div>
+            <div class="enemiesLeft" id="enemiesLeft">16/56</div>
+        </div>
+
+
+        <div class="barContainer">
+            <div class="healthBar">
+                <div class="healthBarTitle">Health</div>
+                <div class="bar">
+                    <div class="healthBarBG">
+                        <div class="healthBarBar" id="HPBarBar"></div>
+                    </div>
+                    <div class="healthBarValue" id="HPBarVal">50/100</div>
+                </div>
+            </div>
+            <div class="healthBar">
+            <div class="healthBarTitle" id="expBarTitle">EXP (LV. 5)</div>
+            <div class="bar">
+                <div class="healthBarBG">
+                    <div class="healthBarBar" id="expBarBar"></div>
+                </div>
+                <div class="healthBarValue" id="expBarVal">50/100</div>
+            </div>
+            </div>
+        </div>
+
+
+        <!-- DERIVED FROM src/UI-Features/harvest/index.html -->
+        <div class="currWeaponIndicatorContainer">
+            <div class="currWeaponTitleContainer" id="currWeaponTitleContainer">
+                ShotGun
+            </div>
+            <div class="seperatorBar"></div>
+            <div class="currWeaponIndicatorContainer">
+                <div class="ammoContainer" id="ammoContainer">07/80</div>
+                <div class="reloadStatusContainer">
+                    <div class="reloadStatusBG">
+                        <div
+                            class="reloadStatusIndicator"
+                            id="reloadStatusIndicator"
+                        ></div>
+                    </div>
+                </div>
+                <div class="statusIndicator" id="statusIndicator">
+                    shoot
+                </div>
+            </div>
+        </div>
+
+            <!-- DERIVED FROM src/UI-Features/weaponsmith/index.html -->
+            <div class="mainShopContainer" id="mainShopContainer">
+                <div class="headerContainer" id="headerContainer">
+                    Weaponsmith
+                </div>
+                <div class="shopUiContainer">
+                    <div class="scrollItemsContainer" id="scrollItemsContainer">
+                        <!-- <div class="itemContainer">Gun 1</div>
                         <div class="itemContainer">Gun 1</div>
                         <div class="itemContainer">Gun 1</div>
                         <div class="itemContainer">Gun 1</div>
                         <div class="itemContainer">Gun 1</div> -->
-                </div>
-                <div class="objViewContainer">
-                    <div class="ObjHeaderContainer">
-                        <p id="name">Gun 1</p>
-                        <div class="costContainer">
-                            <p class="price" id="price">100</p>
-                            <img
-                                src="/UI/ICONS/gold.png"
-                                alt=""
-                                class="gold"
-                                id="gold"
+                    </div>
+                    <div class="objViewContainer">
+                        <div class="ObjHeaderContainer">
+                            <p id="name">Gun 1</p>
+                            <div class="costContainer">
+                                <p class="price" id="price">100</p>
+                                <img
+                                    src="/UI/ICONS/gold.png"
+                                    alt=""
+                                    class="gold"
+                                    id="gold"
                                 />
+                            </div>
                         </div>
-                    </div>
-                    <div class="imageContainer">
-                        <img
-                            src="/GUN/snip1.png"
-                            alt="gun1"
-                            class="gunPreviewImg"
-                            id="gunPreviewImg"
+                        <div class="imageContainer">
+                            <img
+                                src="/GUN/snip1.png"
+                                alt="gun1"
+                                class="gunPreviewImg"
+                                id="gunPreviewImg"
                             />
-                    </div>
-                    <div class="descContainer">
-                        <!-- <div class="itemHeaderContainer">Gun x</div> -->
-                        <div class="itemDescContainer">
-                            <!-- <div class="itemDescHeader">Description:</div> -->
-                            <div class="itemDesc" id="itemDesc">
-                                Lorem ipsum dolor sit amet, consectetur
-                                adipiscing elit. Donec nec odio vitae nunc.
-                            </div>
-                            <!-- STATS -->
-                            <div class="gunStatsContainer">
-                                <div class="gunStat" id="dmgStat">
-                                    <img
-                                        src="/UI/ICONS/expression_attack.png"
-                                        alt="atk"
-                                        class="iconInd"
-                                        />
-                                    <div class="statContainer">
-                                        <div class="statLabel">DMG:</div>
-                                        <div id="dmg">100</div>
-                                    </div>
-                                </div>
-                                <div class="gunStat" id="rangeStat">
-                                    <img
-                                        src="/UI/ICONS/range.png"
-                                        alt="range"
-                                        class="iconInd"
-                                        />
-                                    <div class="statContainer">
-                                        <div class="statLabel">RNG:</div>
-                                        <div id="rng">100</div>
-                                    </div>
-                                </div>
-                                <div class="gunStat" id="speedStat">
-                                    <img
-                                        src="/UI/ICONS/stopwatch.png"
-                                        alt="speed"
-                                        class="iconInd"
-                                        />
-                                    <div class="statContainer">
-                                        <div class="statLabel">SPD:</div>
-                                        <div id="spd">100</div>
-                                    </div>
-                                </div>
-                                <div class="gunStat" id="magSizeStat">
-                                    <img
-                                        src="/UI/ICONS/basket.png"
-                                        alt="magSize"
-                                        class="iconInd"
-                                        />
-                                    <div class="statContainer">
-                                        <div class="statLabel">MAG:</div>
-                                        <div id="magSize">100</div>
-                                    </div>
-                                </div>
-                                <div class="gunStat" id="reloadTimeStat">
-                                    <img
-                                        src="/UI/ICONS/sandtimer.png"
-                                        alt="reloadTime"
-                                        class="iconInd"
-                                        />
-                                    <div class="statContainer">
-                                        <div class="statLabel">RLD:</div>
-                                        <div id="reloadTime">100</div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
-                        <div class="btnContainer">
-                            <button class="buyBtn" id="buyBtn">
-                                <div class="costContainer">
-                                    <p class="price" id="priceBtn">Buy - 100</p>
-                                    <img
-                                        src="/UI/ICONS/gold.png"
-                                        alt=""
-                                        class="gold"
-                                        id="gold"
-                                        />
+                        <div class="descContainer">
+                            <!-- <div class="itemHeaderContainer">Gun x</div> -->
+                            <div class="itemDescContainer">
+                                <!-- <div class="itemDescHeader">Description:</div> -->
+                                <div class="itemDesc" id="itemDesc">
+                                    Lorem ipsum dolor sit amet, consectetur
+                                    adipiscing elit. Donec nec odio vitae nunc.
                                 </div>
-                            </button>
+                                <!-- STATS -->
+                                <div class="gunStatsContainer">
+                                    <div class="gunStat" id="dmgStat">
+                                        <img
+                                            src="/UI/ICONS/expression_attack.png"
+                                            alt="atk"
+                                            class="iconInd"
+                                        />
+                                        <div class="statContainer">
+                                            <div class="statLabel">DMG:</div>
+                                            <div id="dmg">100</div>
+                                        </div>
+                                    </div>
+                                    <div class="gunStat" id="rangeStat">
+                                        <img
+                                            src="/UI/ICONS/range.png"
+                                            alt="range"
+                                            class="iconInd"
+                                        />
+                                        <div class="statContainer">
+                                            <div class="statLabel">RNG:</div>
+                                            <div id="rng">100</div>
+                                        </div>
+                                    </div>
+                                    <div class="gunStat" id="speedStat">
+                                        <img
+                                            src="/UI/ICONS/stopwatch.png"
+                                            alt="speed"
+                                            class="iconInd"
+                                        />
+                                        <div class="statContainer">
+                                            <div class="statLabel">SPD:</div>
+                                            <div id="spd">100</div>
+                                        </div>
+                                    </div>
+                                    <div class="gunStat" id="magSizeStat">
+                                        <img
+                                            src="/UI/ICONS/basket.png"
+                                            alt="magSize"
+                                            class="iconInd"
+                                        />
+                                        <div class="statContainer">
+                                            <div class="statLabel">MAG:</div>
+                                            <div id="magSize">100</div>
+                                        </div>
+                                    </div>
+                                    <div class="gunStat" id="reloadTimeStat">
+                                        <img
+                                            src="/UI/ICONS/sandtimer.png"
+                                            alt="reloadTime"
+                                            class="iconInd"
+                                        />
+                                        <div class="statContainer">
+                                            <div class="statLabel">RLD:</div>
+                                            <div id="reloadTime">100</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="btnContainer">
+                                <button class="buyBtn" id="buyBtn">
+                                    <div class="costContainer">
+                                        <p class="price" id="priceBtn">
+                                            Buy - 100
+                                        </p>
+                                        <img
+                                            src="/UI/ICONS/gold.png"
+                                            alt=""
+                                            class="gold"
+                                            id="gold"
+                                        />
+                                    </div>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="moneyIndContainer" id="moneyIndContainer">
-            <p class="moneyInd" id="moneyInd">100</p>
-            <img src="/UI/ICONS/gold.png" alt="" class="gold" id="gold" />
-        </div>
+            <div class="moneyIndContainer" id="moneyIndContainer">
+                <p class="moneyInd" id="moneyInd">100</p>
+                <img src="/UI/ICONS/gold.png" alt="" class="gold" id="gold" />
+            </div>
         </div>
 
         <div id="interactableUI">Press E to interact</div>

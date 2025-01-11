@@ -114,6 +114,50 @@ export class TileMapRenderer {
     this.buyButton = document.getElementById("buyBtn");
     this.moneyContainer = document.getElementById("moneyIndContainer");
     this.moneyInd = document.getElementById("moneyInd");
+
+    this.wpTitle = document.getElementById("currWeaponTitleContainer");
+    this.ammoInd = document.getElementById("ammoContainer");
+    this.rldInd = document.getElementById("reloadStatusIndicator");
+    this.actInd = document.getElementById("statusIndicator");
+
+    this.waveHeader = document.getElementById("header");
+    this.timerE = document.getElementById("timer");
+    this.enemiesLeft = document.getElementById("enemiesLeft");
+
+    this.hpBar = document.getElementById("HPBarBar");
+    this.hpVal = document.getElementById("HPBarVal");
+
+    this.expTitle = document.getElementById("expBarTitle");
+    this.expBar = document.getElementById("expBarBar");
+    this.expVal = document.getElementById("expBarVal");
+
+    this.GAMEBEGIN = false;
+    this.page1 = document.getElementById("page1");
+    this.page2 = document.getElementById("page2");
+    this.page3 = document.getElementById("page3");
+    this.success = document.getElementById("success");
+    this.btnInduct = document.getElementById("induct");
+    this.btnInduct.addEventListener("click", () => {
+      this.page1.style.display = "none";
+    });
+    this.btnStart = document.getElementById("actStart");
+    this.btnStart.addEventListener("click", () => {
+      this.GAMEBEGIN = true;
+      this.page2.style.display = "none";
+    });
+
+    this.totalAmmo = 0;
+    this.MAX_AMMO = 100;
+
+    this.hp = 100;
+    this.MAX_HP = 100;
+
+    this.exp = 0;
+    this.expToNextLevel = (l) => {
+      return Math.floor(0.5 * l ** 2);
+    };
+    this.level = 1;
+
     this.buyAbleWeapons = WP.starterWeapons;
     this.moveUIDown();
     this.moveMoneyDown();
@@ -135,9 +179,96 @@ export class TileMapRenderer {
     // pathfind
     this.grid = null;
     this.ogGrid = null;
+
+    this.baseStats = {
+      health: 15,
+      speed: 3.5,
+      damage: 5,
+      coins: 75,
+      exp: 10,
+      bulletSpeed: 2,
+    };
+    this.currentWave = 5;
+    this.waves = {
+      1: {
+        nEnemies: 5,
+        healthMul: 1,
+        speedMul: 1,
+        damageMul: 1,
+        coinsMul: 1,
+        expMul: 1,
+      },
+      2: {
+        nEnemies: 10,
+        healthMul: 1.2,
+        speedMul: 1.1,
+        damageMul: 1.1,
+        coinsMul: 1.2,
+        expMul: 1.2,
+      },
+      3: {
+        nEnemies: 12,
+        healthMul: 1.4,
+        speedMul: 1.2,
+        damageMul: 1.2,
+        coinsMul: 1.4,
+        expMul: 1.4,
+      },
+      4: {
+        nEnemies: 13,
+        healthMul: 1.6,
+        speedMul: 1.3,
+        damageMul: 1.3,
+        coinsMul: 1.6,
+        expMul: 1.6,
+      },
+      5: {
+        nEnemies: 1,
+        healthMul: 1.8,
+        speedMul: 1.4,
+        damageMul: 1.4,
+        coinsMul: 1.8,
+        expMul: 1.8,
+      },
+    };
+
+    this.buffs = ["SPEED", "HEALTH", "DAMAGE", "BULLET_SPEED", "SLOW", "BLIND"];
+    this.buffDuration = 10000;
+    this.activeBuffs = [];
+    this.buffColors = {
+      SPEED: "blue",
+      HEALTH: "green",
+      DAMAGE: "orange",
+      BULLET_SPEED: "yellow",
+      SLOW: "red",
+      BLIND: "black",
+    };
+    this.debuffs = {
+      red: "SLOW",
+      black: "BLIND",
+    };
+
+    this.actualBuffs = [];
+    this.activePlayerModifiers = {
+      speed: 1,
+      damage: 1,
+      health: 1,
+      bulletSpeed: 1,
+    };
+    this.currentGLOBALmodifiers = {};
+    this.startGame = false;
   }
 
   async init() {
+    this.gunSound = new Audio("AUDIO/gun.mp3");
+    this.collideSound = new Audio("AUDIO/collide.mp3");
+    this.powerUpSound = new Audio("AUDIO/up.mp3");
+    this.winSound = new Audio("AUDIO/win.mp3");
+    this.loseSound = new Audio("AUDIO/lose.mp3");
+    this.bgMusic = new Audio("AUDIO/bgm.mp3");
+    this.bgMusic.loop = true;
+    this.bgMusic.volume = 0.2;
+    this.bgMusic.play();
     this.tileSet = await this.sliceSpritesheetWithIDs(this.spritesheet);
     this.ctx = this.canvas.getContext("2d");
     this.uiCtx = this.uiCanvas.getContext("2d");
@@ -146,7 +277,6 @@ export class TileMapRenderer {
     this.height = this.canvas.height;
     this.interactUI.style.top = this.height * 1.2 + "px";
     this.grid = this.buildAstarGrid();
-    console.log("Grid", this.grid);
     this.playerTiles = await this.sliceSpritesheetWithIDs(
       this.playerSpritesheet,
       32,
@@ -203,6 +333,10 @@ export class TileMapRenderer {
 
   // ANIMATE //
   animate() {
+    if (!this.GAMEBEGIN) {
+      requestAnimationFrame(() => this.animate());
+      return;
+    }
     this.nRenderCycles++;
     this.deltaT = Date.now() - this.lastT;
     this.lastT = Date.now();
@@ -212,12 +346,26 @@ export class TileMapRenderer {
     if (this.enableGun && this.currentWeapon) {
       this.currentWeapon.updateProjectiles(this.tileWidth, this.scale);
       this.drawBullets();
+      this.updateGunUi();
+      this.enemyBulletCollisionCheck();
+      this.updateHeaderUi();
+      if (this.enemies.length >= 1) {
+        this.enemyAttack();
+        this.playerBulletCollisionCheck();
+        this.cleanEnemiesArray();
+      }
     }
+    this.checkWINLOSE();
     this.projectileCollisionDetection();
     this.drawPlayer();
     this.drawAllEnemies();
-    this.drawDayNightCycle();
-    this.debugPlayerDot();
+    // this.drawDayNightCycle();
+    // this.debugPlayerDot();
+    this.updateHealthUi();
+    this.updateEXPUi();
+    this.updateBuffs();
+    this.drawBuffs();
+    this.waveHandler();
     // this.drawGrid();
     // this.drawEnemyPath();
     // this.grid = this.buildAstarGrid();
@@ -257,30 +405,35 @@ export class TileMapRenderer {
     // console.log("offset", this.offsetX, this.offsetY);
     let oldX = this.player.x;
     let oldY = this.player.y;
+
     let oldLastDirection = this.lastDirection;
 
     let newX = this.player.x;
     let newY = this.player.y;
 
-    if (this.keys.Shift) {
+    if (this.keys.ShiftLeft || this.keys.ShiftRight) {
       this.speedMultiplier = 2;
     } else {
       this.speedMultiplier = 1;
     }
-    if (this.keys.ArrowUp) {
-      newY -= this.speed * this.speedMultiplier;
+    if (this.keys.KeyW) {
+      newY -=
+        this.speed * this.speedMultiplier * this.activePlayerModifiers.speed;
       this.lastDirection = "UP";
     }
-    if (this.keys.ArrowDown) {
-      newY += this.speed * this.speedMultiplier;
+    if (this.keys.KeyS) {
+      newY +=
+        this.speed * this.speedMultiplier * this.activePlayerModifiers.speed;
       this.lastDirection = "DOWN";
     }
-    if (this.keys.ArrowLeft) {
-      newX -= this.speed * this.speedMultiplier;
+    if (this.keys.KeyA) {
+      newX -=
+        this.speed * this.speedMultiplier * this.activePlayerModifiers.speed;
       this.lastDirection = "LEFT";
     }
-    if (this.keys.ArrowRight) {
-      newX += this.speed * this.speedMultiplier;
+    if (this.keys.KeyD) {
+      newX +=
+        this.speed * this.speedMultiplier * this.activePlayerModifiers.speed;
       this.lastDirection = "RIGHT";
     }
 
@@ -290,22 +443,18 @@ export class TileMapRenderer {
       this.player.x = newX;
       this.player.y = newY;
     } else {
+      this.collideSound.play();
       if (this.currentCollisionBlock != "x") {
         this.player.x = newX;
-        console.log("Y");
+        // console.log("Y");
       }
       if (this.currentCollisionBlock != "y") {
         this.player.y = newY;
-        console.log("X");
+        // console.log("X");
       }
     }
-    if (
-      this.keys.ArrowUp ||
-      this.keys.ArrowDown ||
-      this.keys.ArrowLeft ||
-      this.keys.ArrowRight
-    ) {
-      if (this.keys.Shift) {
+    if (this.keys.KeyW || this.keys.KeyS || this.keys.KeyA || this.keys.KeyD) {
+      if (this.keys.ShiftLeft || this.keys.ShiftRight) {
         this.currentAction = "RUN";
       } else {
         this.currentAction = "WALK";
@@ -336,6 +485,8 @@ export class TileMapRenderer {
 
     this.prevX = this.player.x + this.playerOffsetX;
     this.prevY = this.player.y + this.playerOffsetY;
+    const playerTile = this.getTilePosition(this.width / 2, this.height / 2);
+    this.pickUpBuff(Math.floor(playerTile.x), Math.floor(playerTile.y));
     this.gameTime += this.deltaT;
   }
 
@@ -431,7 +582,7 @@ export class TileMapRenderer {
           (17 / 32) * this.scale * this.tileWidth * 1.6,
         this.player.y +
           this.playerOffsetY -
-          (19 / 32) * this.scale * this.tileWidth * 2,
+          (12 / 32) * this.scale * this.tileWidth * 2,
         this.scale * this.tileWidth * 1.7,
         this.scale * this.tileWidth * 1.7,
       );
@@ -454,7 +605,7 @@ export class TileMapRenderer {
           (17 / 32) * this.scale * this.tileWidth * 1.6,
         this.player.y +
           this.playerOffsetY -
-          (19 / 32) * this.scale * this.tileWidth * 2,
+          (12 / 32) * this.scale * this.tileWidth * 2,
         this.scale * this.tileWidth * 1.7,
         this.scale * this.tileWidth * 1.7,
       );
@@ -477,7 +628,7 @@ export class TileMapRenderer {
           (17 / 32) * this.scale * this.tileWidth * 1.6,
         this.player.y +
           this.playerOffsetY -
-          (19 / 32) * this.scale * this.tileWidth * 2,
+          (12 / 32) * this.scale * this.tileWidth * 2,
         this.scale * this.tileWidth * 1.7,
         this.scale * this.tileWidth * 1.7,
       );
@@ -527,6 +678,83 @@ export class TileMapRenderer {
 
     this.ctx.fillStyle = color;
     this.ctx.fillRect(0, 0, this.width, this.height);
+  }
+
+  drawBuffs() {
+    for (let i of this.actualBuffs) {
+      this.ctx.fillStyle = i.color;
+      const posX = i.x * this.tileWidth * this.scale - this.offsetX;
+      const posY = i.y * this.tileWidth * this.scale - this.offsetY;
+      this.ctx.fillRect(
+        posX,
+        posY,
+        (this.tileWidth * this.scale) / 2,
+        (this.tileWidth * this.scale) / 2,
+      );
+    }
+  }
+
+  pickUpBuff(x, y) {
+    for (let i of this.actualBuffs) {
+      if (i.x === x && i.y === y) {
+        this.powerUpSound.play();
+        this.activeBuffs.push(i);
+        this.actualBuffs.splice(this.actualBuffs.indexOf(i), 1);
+      }
+    }
+  }
+
+  updateBuffs() {
+    // reset
+    this.activePlayerModifiers.speed = 1;
+    this.activePlayerModifiers.health = 1;
+    this.activePlayerModifiers.damage = 1;
+    if (this.currentWeapon) {
+      for (let p of this.currentWeapon.projectiles) {
+        p.damage = this.currentWeapon.damage;
+        p.speed = this.currentWeapon.speed;
+      }
+    }
+    this.activePlayerModifiers.bulletSpeed = 1;
+    // console.log(this.activeBuffs);
+    for (let i of this.activeBuffs) {
+      i.duration -= this.deltaT;
+      if (i.duration <= 0) {
+        this.activeBuffs.splice(this.activeBuffs.indexOf(i), 1);
+      }
+      if (i.buff === "SPEED") {
+        this.activePlayerModifiers.speed = 1.5;
+      }
+      if (i.buff === "HEALTH") {
+        this.activePlayerModifiers.health = 1.5;
+      }
+      if (i.buff === "DAMAGE") {
+        this.activePlayerModifiers.damage = 1.5;
+        if (this.currentWeapon) {
+          for (let p of this.currentWeapon.projectiles) {
+            p.damage = this.currentWeapon.damage * 1.5;
+          }
+        }
+      }
+      if (i.buff === "BULLET_SPEED") {
+        this.activePlayerModifiers.bulletSpeed = 1.5;
+        if (this.currentWeapon) {
+          for (let p of this.currentWeapon.projectiles) {
+            p.speed = this.currentWeapon.bulletSpeed * 1.5;
+          }
+        }
+      }
+      if (i.buff === "SLOW") {
+        this.activePlayerModifiers.speed = 0.5;
+      }
+      if (i.buff === "BLIND") {
+        this.isMovementLocked = true;
+        this.isUIOpen = true;
+        this.startZoomEffect("in");
+        i.duration = 0;
+      }
+    }
+    // console.log(this.activePlayerModifiers);
   }
 
   drawZoomEffect(radius) {
@@ -592,7 +820,7 @@ export class TileMapRenderer {
         this.uiCtx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
         this.isUIOpen = false;
         this.isMovementLocked = false;
-        console.log("DONE");
+        // console.log("DONE");
       });
     this.tweenGroup.add(this.testTween);
     this.tweenGroup.add(this.testTweenStep2);
@@ -743,6 +971,7 @@ export class TileMapRenderer {
   }
 
   rgbaToRgb(rgba) {
+    // epic regex time
     const parts = rgba.match(/rgba?\((\d+), (\d+), (\d+),? ?(\d?.?\d+)?\)/);
     return {
       r: parseInt(parts[1], 10),
@@ -756,12 +985,11 @@ export class TileMapRenderer {
   checkCollision(x, y) {
     const newX = x;
     const newY = y;
-    const playerWidth = 10; // Player width
-    const playerHeight = 10; // Player height
+    const playerWidth = 20; // hitbox
+    const playerHeight = 20;
     const tileWidth = this.tileWidth * this.scale;
     const tileHeight = this.tileWidth * this.scale;
 
-    // Store the player's previous position
     const prevX = this.prevX;
     const prevY = this.prevY;
 
@@ -774,7 +1002,7 @@ export class TileMapRenderer {
           const tileX = tile.x * tileWidth - this.offsetX;
           const tileY = tile.y * tileHeight - this.offsetY;
 
-          // Check for collision along the X axis
+          // x
           if (
             newX < tileX + tileWidth &&
             newX + playerWidth > tileX &&
@@ -789,7 +1017,7 @@ export class TileMapRenderer {
             }
           }
 
-          // Check for collision along the Y axis
+          // y
           if (
             prevX < tileX + tileWidth &&
             prevX + playerWidth > tileX &&
@@ -804,7 +1032,6 @@ export class TileMapRenderer {
             }
           }
 
-          // If both collisions are detected, break out of the loop
           if (collisionX && collisionY) {
             break;
           }
@@ -812,7 +1039,6 @@ export class TileMapRenderer {
       }
     }
 
-    // If no collision is detected, reset the currentCollisionBlock
     if (!collisionX && !collisionY) {
       this.currentCollisionBlock = null;
     }
@@ -866,6 +1092,52 @@ export class TileMapRenderer {
     return { collision: isColliding, normal: normal };
   }
 
+  enemyBulletCollisionCheck() {
+    for (let i of this.currentWeapon.projectiles) {
+      for (let j of this.enemies) {
+        // console.log(i, j);
+        const r = { x: j.x, y: j.y, width: 1, height: 1 };
+        const c = { x: i.position.x, y: i.position.y, radius: 0.01 };
+        if (this.circleRect(c, r).collision) {
+          j.health -= i.damage;
+          if (j.health <= 0) {
+            j.health = 0;
+            this.dropBuffsEnemy(j.x, j.y);
+            this.coins += this.baseStats.coins;
+            this.hp += 10;
+            if (this.hp > 100) {
+              this.hp = 100;
+            }
+            console.log("COINS", this.coins);
+          }
+          i.alive = false;
+        }
+      }
+    }
+  }
+
+  playerBulletCollisionCheck() {
+    for (let i of this.enemies) {
+      for (let p of i.projectiles) {
+        if (!p.alive) continue;
+        const playerCoord = this.getTilePosition(
+          this.width / 2,
+          this.height / 2,
+        );
+        const r = { x: playerCoord.x, y: playerCoord.y, width: 1, height: 1 };
+        const c = { x: p.position.x, y: p.position.y, radius: 0.01 };
+        if (this.circleRect(c, r).collision) {
+          this.hp -= p.damage;
+          p.alive = false;
+          if (this.hp <= 0) {
+            this.hp = 0;
+            this.gameOver();
+          }
+        }
+      }
+    }
+  }
+
   findClosestInteractible() {
     const interactibleLayer = this.tileMap.layers.find(
       (layer) => layer.name === "INTERACTIBLES",
@@ -888,21 +1160,21 @@ export class TileMapRenderer {
         this.offsetY +
         (this.tileWidth * this.scale) / 2;
 
-      // debug
-      this.ctx.fillStyle = "rgba(0,0,255,0.5)";
-      this.ctx.fillRect(
-        tileX,
-        tileY,
-        (this.tileWidth * this.scale) / 2,
-        (this.tileWidth * this.scale) / 2,
-      );
-      this.ctx.fillStyle = "rgba(0,255,0,0.5)";
-      this.ctx.fillRect(
-        playerX,
-        playerY,
-        (this.tileWidth * this.scale) / 2,
-        (this.tileWidth * this.scale) / 2,
-      );
+      // // debug
+      // this.ctx.fillStyle = "rgba(0,0,255,0.5)";
+      // this.ctx.fillRect(
+      //   tileX,
+      //   tileY,
+      //   (this.tileWidth * this.scale) / 2,
+      //   (this.tileWidth * this.scale) / 2,
+      // );
+      // this.ctx.fillStyle = "rgba(0,255,0,0.5)";
+      // this.ctx.fillRect(
+      //   playerX,
+      //   playerY,
+      //   (this.tileWidth * this.scale) / 2,
+      //   (this.tileWidth * this.scale) / 2,
+      // );
 
       const distance = Math.hypot(playerX - tileX, playerY - tileY);
       if (distance < minDistance) {
@@ -957,7 +1229,6 @@ export class TileMapRenderer {
         return;
       }
     }
-    console.log(tile);
     switch (interactionType) {
       case "ANVIL":
         // console.log("ANVIL");
@@ -1115,6 +1386,46 @@ export class TileMapRenderer {
     }
   }
 
+  updateGunUi() {
+    if (!this.currentWeapon) return;
+    this.wpTitle.innerHTML = this.currentWeapon.name;
+    this.ammoInd.innerHTML = this.currentWeapon.ammo;
+    this.actInd.innerHTML = this.currentWeapon.currentAct;
+    const rldPct =
+      (Date.now() - this.currentWeapon.lastReloaded) /
+      this.currentWeapon.reloadTime;
+    if (rldPct < 1) {
+      this.rldInd.style.width = rldPct * 100 + "%";
+      this.actInd.innerHTML = "reloading";
+    } else {
+      this.rldInd.style.width = "100%";
+    }
+  }
+
+  updateHealthUi() {
+    this.hpVal.innerHTML =
+      this.hp * this.activePlayerModifiers.health +
+      "/" +
+      this.MAX_HP * this.activePlayerModifiers.health;
+    const hpPct = (this.hp / this.MAX_HP) * 100;
+    this.hpBar.style.width = hpPct + "%";
+  }
+  updateEXPUi() {
+    this.expVal.innerHTML =
+      this.exp + "/" + this.expToNextLevel(this.level + 1);
+    const expPct = (this.exp / this.expToNextLevel(this.level + 1)) * 100;
+    this.expBar.style.width = expPct + "%";
+    this.expTitle.innerHTML = "EXP " + "(LV. " + this.level + ")";
+  }
+  updateHeaderUi() {
+    this.waveHeader.innerHTML = "WAVE " + this.currentWave;
+    try {
+      this.enemiesLeft.innerHTML =
+        this.enemies.length + "/" + this.currentGLOBALmodifiers.nEnemies;
+    } catch (e) {
+      this.winGame();
+    }
+  }
   // UI TRANSITIONS //
   //
   syncMoney() {
@@ -1142,8 +1453,26 @@ export class TileMapRenderer {
     this.moneyContainer.classList.remove("up");
   }
 
+  // DMG //
+  damagePlayer(dmg) {
+    this.hp -= dmg;
+    if (this.hp <= 0) {
+      this.hp = 0;
+      this.gameOver();
+    }
+  }
+
+  healPlayer(heal) {
+    this.hp += heal;
+    if (this.hp > this.MAX_HP) {
+      this.hp = this.MAX_HP;
+    }
+  }
+
+  gameOver() {}
   // HARVESTING //
   plantParse() {
+    // scope creep
     // Plants locations defined in tilemap as the 0th growth stage,
     // with the lower tile as the actual plant position for gorwth stages 3, 4 which have a height of 2 tiles
     // Stage 4 is the last graphical stage, stage 5 is the inventory/icon
@@ -1172,6 +1501,7 @@ export class TileMapRenderer {
   }
 
   harvest(tile) {
+    // scope creep
     // TODO: Verify for fully mature crops
     // Use the return from findClosestInteractible() to get the tile
     // check if the tile is a plant
@@ -1186,6 +1516,7 @@ export class TileMapRenderer {
   }
 
   drawAndUpdatePlants() {
+    // scope creep
     for (let i of this.plants) {
       // get img from update
       const tileImg = i.update();
@@ -1213,7 +1544,7 @@ export class TileMapRenderer {
   }
 
   cheatyGetGun() {
-    this.currentWeapon = WP.starterWeapons[1];
+    this.currentWeapon = WP.starterWeapons[0];
   }
 
   projectileCollisionDetection() {
@@ -1225,7 +1556,7 @@ export class TileMapRenderer {
 
     for (let i of projectiles) {
       for (let layer of this.tileMap.layers) {
-        // TODO: reduce time complexity ... how? currently O(n^2)
+        // TODO: reduce time complexity ... how? currently O(n^2) ish
         if (layer.collider) {
           for (let tile of layer.tiles) {
             const circle = {
@@ -1247,6 +1578,37 @@ export class TileMapRenderer {
             if (collision.collision) {
               i.alive = false;
               // console.log("HIT");
+            }
+          }
+        }
+      }
+    }
+    for (let e of this.enemies) {
+      for (let p of e.projectiles) {
+        for (let layer of this.tileMap.layers) {
+          // TODO: reduce time complexity ... how? currently O(n^2) ish
+          if (layer.collider) {
+            for (let tile of layer.tiles) {
+              const circle = {
+                x: p.position.x,
+                y: p.position.y,
+                radius: 0.2, // TODO: make this a property of the projectile
+              };
+              // console.log(circle);
+              const rect = {
+                x: tile.x,
+                y: tile.y,
+                width: 1,
+                height: 1,
+              };
+              // this.ctx.fillStyle = "rgba(0,0,255,0.1)";
+              // this.ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+
+              const collision = this.circleRect(circle, rect);
+              if (collision.collision) {
+                p.alive = false;
+                // console.log("HIT");
+              }
             }
           }
         }
@@ -1308,8 +1670,9 @@ export class TileMapRenderer {
     this.spawnEnemyAt(Math.floor(spawnX), Math.floor(spawnY));
   }
 
-  spawnEnemyAt(x, y, maxHealth = 100) {
-    const enemy = new ENEMY.Enemy(maxHealth, 5, 0.05, x, y);
+  spawnEnemyAt(x, y, maxHealth = 10) {
+    const tileW = this.tileWidth * this.scale;
+    const enemy = new ENEMY.Enemy(maxHealth, 5, 0.05, x, y, tileW, tileW);
     this.enemies.push(enemy);
     this.enemyPathfindUpdate();
   }
@@ -1317,6 +1680,9 @@ export class TileMapRenderer {
   drawAllEnemies() {
     for (let enemy of this.enemies) {
       enemy.update();
+      for (let i of enemy.projectiles) {
+        i.update(this.tileWidth, this.scale);
+      }
       enemy.draw(
         this.ctx,
         enemy.x * this.tileWidth * this.scale - this.offsetX,
@@ -1360,7 +1726,6 @@ export class TileMapRenderer {
         }
         this.grid[step.y][step.x] = 1;
       }
-      console.log(newPath, tilePos);
       // newPath.pop(); // remove player position from path
       enemy.setPath(newPath);
     }
@@ -1462,9 +1827,24 @@ export class TileMapRenderer {
         this.ctx.fillRect(
           pos.x * this.tileWidth * this.scale - this.offsetX,
           pos.y * this.tileWidth * this.scale - this.offsetY,
-          10,
-          10,
+          20,
+          20,
         );
+      }
+    }
+
+    if (this.enemies.length >= 1) {
+      for (let enemy of this.enemies) {
+        for (let b of enemy.projectiles) {
+          if (!b.alive) continue;
+          this.ctx.fillStyle = b.color;
+          this.ctx.fillRect(
+            b.position.x * this.tileWidth * this.scale - this.offsetX,
+            b.position.y * this.tileWidth * this.scale - this.offsetY,
+            20,
+            20,
+          );
+        }
       }
     }
   }
@@ -1607,7 +1987,7 @@ export class TileMapRenderer {
    */
   flipImageHorizontallyBlocking(image) {
     if (!image.complete) {
-      throw new Error("Image is not fully loaded");
+      throw new Error("img is not fully loaded");
     }
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
@@ -1656,10 +2036,10 @@ export class TileMapRenderer {
   // HOOKS //
   addHooks() {
     addEventListener("keydown", (e) => {
-      this.keys[e.key] = true;
+      this.keys[e.code] = true;
     });
     addEventListener("keyup", (e) => {
-      this.keys[e.key] = false;
+      this.keys[e.code] = false;
       if (e.key === "Escape") {
         if (this.isUIOpen && this.currentInteractible !== "BED") {
           this.moveUIDown();
@@ -1674,6 +2054,11 @@ export class TileMapRenderer {
       if (e.key === "e" || e.key === "E") {
         this.handleActualInteraction();
       }
+      if (e.key === "r" || e.key === "R") {
+        if (this.currentWeapon && this.enableGun) {
+          this.currentWeapon.reload();
+        }
+      }
     });
 
     addEventListener("visibilitychange", () => {
@@ -1682,11 +2067,15 @@ export class TileMapRenderer {
         this.keys = {};
       }
     });
-
+    this.singleSHot = false;
     this.canvas.addEventListener("click", (e) => {
-      this.spawnEnemies();
+      // if (this.enemies.length < 2) this.spawnEnemies();
       // let target = new UTILS.Vec2(e.clientX, e.clientY);
       // let origin = new UTILS.Vec2(this.width / 2, this.height / 2);
+      if (!this.singleSHot) {
+        this.bgMusic.play();
+        this.singleSHot = true;
+      }
 
       const tilePos = this.getTilePosition(e.clientX, e.clientY);
       const target = new UTILS.Vec2(tilePos.x, tilePos.y);
@@ -1696,6 +2085,10 @@ export class TileMapRenderer {
 
       if (this.isUIOpen) return;
       if (this.enableGun && this.currentWeapon) {
+        if (this.currentWeapon.ammo > 0) {
+          this.gunSound.currentTime = 0;
+          this.gunSound.play();
+        }
         this.currentWeapon.shoot(origin, target);
       }
     });
@@ -1704,5 +2097,115 @@ export class TileMapRenderer {
       let currentSelectedItem = document.getElementById("name").innerHTML;
       this.buyItem(currentSelectedItem);
     });
+  }
+
+  enemyAttack() {
+    // check if player inside enemy range
+    const enemyRng = 10;
+    for (let enemy of this.enemies) {
+      if (enemy.isDead) continue;
+      const playerTilePos = this.getTilePosition(
+        this.width / 2,
+        this.height / 2,
+      );
+
+      const vecPlayerTilePos = new UTILS.Vec2(playerTilePos.x, playerTilePos.y);
+
+      const enemyTilePos = new UTILS.Vec2(enemy.x, enemy.y);
+      const distance = vecPlayerTilePos.distance(enemyTilePos);
+      if (distance < enemyRng) {
+        if (Date.now() - enemy.lastAtk >= enemy.atkCD) {
+          const origin = new UTILS.Vec2(enemy.x + 0.5, enemy.y + 0.5);
+          const target = new UTILS.Vec2(playerTilePos.x, playerTilePos.y);
+          const dir = target.sub(origin).normalize();
+
+          // shoot bullet
+          const proj = new WP.Projectile(
+            origin,
+            dir,
+            this.baseStats.speed * 2, // TODO: WAVE MUL
+            500,
+            this.baseStats.damage,
+            "red",
+            this.canvas,
+          );
+
+          enemy.lastAtk = Date.now();
+          enemy.projectiles.push(proj);
+        }
+      }
+    }
+  }
+
+  dropBuffsEnemy(ax, ay) {
+    // 50% chance to drop a buff
+    if (Math.random() < 1) {
+      const x = Math.floor(ax);
+      const y = Math.floor(ay);
+      const randomBuff =
+        this.buffs[Math.floor(Math.random() * this.buffs.length)];
+      const buff = {
+        x: x,
+        y: y,
+        buff: randomBuff,
+        color: this.buffColors[randomBuff],
+        time: 0,
+        duration: 10000,
+      };
+      this.actualBuffs.push(buff);
+    }
+  }
+  cleanEnemiesArray() {
+    this.enemies = this.enemies.filter((e) => !e.isDead);
+  }
+  waveHandler() {
+    if (this.enemies.length < 1) {
+      if (!this.startGame) {
+        this.startGame = true;
+        this.currentGLOBALmodifiers = this.waves[this.currentWave];
+        this.spawnWaveEnemies();
+        return;
+      }
+      console.log("WAVE COMPLETED");
+      if (this.currentWave === this.waves.length) {
+        this.winGame();
+        return;
+      }
+      try {
+        this.currentGLOBALmodifiers = this.waves[this.currentWave];
+        this.currentWave++;
+        this.spawnWaveEnemies();
+      } catch (e) {
+        this.winGame();
+      }
+    }
+  }
+
+  spawnWaveEnemies() {
+    for (let i = 0; i < this.currentGLOBALmodifiers.nEnemies; i++) {
+      this.spawnEnemies();
+    }
+  }
+
+  checkWINLOSE() {
+    if (this.currentWave > this.waves.length) {
+      this.winGame();
+    }
+    if (this.hp <= 0) {
+      this.loseGame();
+    }
+  }
+
+  winGame() {
+    this.winSound.play();
+    this.success.style.display = "block";
+    this.success.innerHTML = "YOU WIN";
+    this.success.style.zIndex = 1000;
+  }
+  loseGame() {
+    this.loseSound.play();
+    this.success.style.display = "block";
+    this.success.innerHTML = "YOU LOSE";
+    this.success.style.zIndex = 1000;
   }
 }

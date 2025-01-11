@@ -30,6 +30,7 @@ export class Weapon {
     this.numProjectiles = numProjectiles;
     this.magSize = magSize;
     this.reloadTime = reloadTime;
+    this.currentAct = "ready";
     // for in game use
     this.ammo = magSize;
 
@@ -47,20 +48,28 @@ export class Weapon {
   shoot(origin, target) {
     // origin: Vec2, target: Vec2
     if (Date.now() - this.lastReloaded < this.reloadTime) {
+      this.currentAct = "reloading";
       console.log("Reloading...");
       return;
     }
 
     if (this.ammo <= 0) {
+      this.currentAct = "no ammo";
       console.log("Out of ammo!");
+      if (Date.now() - this.lastReloaded < this.reloadTime) {
+        console.log("Reloading...");
+        this.currentAct = "reloading";
+      }
       return;
     }
 
     if (Date.now() - this.lastFired < 500 / this.speed) {
       console.log("cooldown");
+      this.currentAct = "cooldown";
       return;
     }
 
+    this.currentAct = "ready";
     // calculate direction
     let dir = target.sub(origin).normalize();
     let dirs = [];
@@ -83,6 +92,7 @@ export class Weapon {
     } else {
       dirs.push(dir);
     }
+    console.log(dirs);
 
     let projectiles = [];
     for (let i = 0; i < dirs.length; i++) {
@@ -109,11 +119,13 @@ export class Weapon {
   reload() {
     if (this.ammo == this.magSize) {
       console.log("Magazine is already full!");
+      this.currentAct = "ready";
       return;
     }
 
     if (Date.now() - this.lastReloaded < this.reloadTime) {
       console.log("Reloading...");
+      this.currentAct = "reloading";
       return;
     }
 

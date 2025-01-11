@@ -1,5 +1,5 @@
 export class Enemy {
-  constructor(maxHealth, damage, speed, x, y) {
+  constructor(maxHealth, damage, speed, x, y, w, h) {
     this.maxHealth = maxHealth;
     this.health = maxHealth;
     this.damage = damage;
@@ -7,17 +7,31 @@ export class Enemy {
     this.x = x;
     this.y = y;
 
+    this.width = w; // hitbox
+    this.height = h;
+
     this.path = [];
     this.currentPathIndex = 0;
+
+    this.isDead = false;
+    this.lastAtk = Date.now();
+    this.atkCD = 1500; // s
+    this.projectiles = [];
   }
 
   draw(ctx, x, y) {
+    if (this.isDead) return;
     ctx.fillStyle = "red";
-    ctx.fillRect(x, y, 20, 20);
+    ctx.fillRect(x, y, this.width, this.height);
   }
 
   update() {
+    if (this.health <= 0) {
+      this.isDead = true;
+    }
+    console.log(this.health);
     if (this.path.length === 0) return;
+    if (this.isDead) return;
 
     const target = this.path[this.currentPathIndex];
     if (!target) return;
@@ -38,6 +52,7 @@ export class Enemy {
       this.x += Math.cos(angle) * this.speed;
       this.y += Math.sin(angle) * this.speed;
     }
+    this.cleanProjectilesArray();
   }
 
   setPath(path) {
@@ -45,5 +60,15 @@ export class Enemy {
     // check if already in movement to avoid teleporting
     // if (Math.floor(this.x))
     this.currentPathIndex = 1;
+  }
+
+  damage(damage) {
+    this.health -= damage;
+    if (this.health <= 0) {
+      this.isDead = true;
+    }
+  }
+  cleanProjectilesArray() {
+    this.projectiles = this.projectiles.filter((p) => p.alive);
   }
 }
