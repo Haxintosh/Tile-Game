@@ -129,7 +129,7 @@ export class TileMapRenderer {
     // pve
     this.enemies = [];
     this.SAFE_ZONE = 100;
-    this.UPDATE_PATH_CYCLE = 100; // update path every 100 render cycles
+    this.UPDATE_PATH_CYCLE = 100; // update path every 240 render cycles
     this.nRenderCycles = 0;
 
     // pathfind
@@ -219,7 +219,7 @@ export class TileMapRenderer {
     this.debugPlayerDot();
     this.drawGrid();
     this.drawEnemyPath();
-    // this.drawEnemyPath();
+    // this.grid = this.buildAstarGrid();
     if (this.nRenderCycles >= this.UPDATE_PATH_CYCLE) {
       this.nRenderCycles = 0;
       if (this.enemies.length > 0) {
@@ -1333,17 +1333,59 @@ export class TileMapRenderer {
     if (!this.grid) {
       this.grid = this.buildAstarGrid();
     }
+
     const tilePos = this.getTilePosition(this.width / 2, this.height / 2);
     const end = { x: Math.floor(tilePos.x), y: Math.floor(tilePos.y) };
+
     for (let enemy of this.enemies) {
       const start = { x: Math.floor(enemy.x), y: Math.floor(enemy.y) };
-      console.log(start, end);
-      enemy.setPath(PF.aStar(this.grid, start, end));
+
+      // by appoinment only
+      if (enemy.path) {
+        for (let step of enemy.path) {
+          this.grid[step.y][step.x] = 0;
+        }
+      }
+
+      // rm -rf player position from grid
+      // this.grid[playerTilePos.y][playerTilePos.x] = 0;
+
+      const newPath = PF.aStar(this.grid, start, end);
+      const actualPathEnd = newPath.at(-1);
+      if (actualPathEnd) {
+        if (actualPathEnd.x === tilePos.x && actualPathEnd.y === tilePos.y) {
+          newPath.pop();
+        }
+      }
+      for (let step of newPath) {
+        if (step.y === tilePos.y && step.x === tilePos.x) {
+          console.log("Player position in path");
+          continue; // skip player position
+        }
+        this.grid[step.y][step.x] = 1;
+      }
+
+      enemy.setPath(newPath);
     }
   }
 
   buildAstarGrid() {
-    // stage 1: only colliders
+    if (this.ogGrid) {
+      let grid = this.ogGrid.map((row) => row.slice());
+
+      for (let enemy of this.enemies) {
+        if (enemy.path) {
+          for (let step of enemy.path) {
+            grid[step.y][step.x] = 0; // Reserve the path
+          }
+        }
+      }
+
+      // const playerXY = this.getTilePosition(this.width / 2, this.height / 2);
+      // grid[Math.floor(playerXY.y)][Math.floor(playerXY.x)] = 0;
+
+      return grid;
+    }
     let grid = [];
     for (let i = 0; i < this.tileMap.mapWidth; i++) {
       grid[i] = [];
@@ -1359,11 +1401,11 @@ export class TileMapRenderer {
         }
       }
     }
+
     if (!this.ogGrid) {
       this.ogGrid = grid;
     }
 
-    // stage 2: add path to grid to prevent enemy collision
     return grid;
   }
 
@@ -1375,11 +1417,12 @@ export class TileMapRenderer {
     for (let enemy of this.enemies) {
       if (!enemy.path) continue;
       for (let i of enemy.path) {
-        this.drawSquareFromTileXY(i.x, i.y);
+        this.drawSquareFromTileXYContrast(i.x, i.y);
       }
+
       if (enemy.path.length) {
-        this.drawSquareFromTileXYContrast(enemy.path[0].x, enemy.path[0].y); // start
-        this.drawSquareFromTileXYContrast(
+        this.drawSquareFromTileXY(enemy.path[0].x, enemy.path[0].y); // start
+        this.drawSquareFromTileXY(
           enemy.path[enemy.path.length - 1].x,
           enemy.path[enemy.path.length - 1].y,
         ); // end
@@ -1387,7 +1430,7 @@ export class TileMapRenderer {
     }
   }
   drawSquareFromTileXY(x, y) {
-    this.ctx.fillStyle = "rgba(0,0,255,0.5)";
+    this.ctx.fillStyle = "rgba(255,0,255,0.5)";
     this.ctx.fillRect(
       x * this.tileWidth * this.scale - this.offsetX,
       y * this.tileWidth * this.scale - this.offsetY,
