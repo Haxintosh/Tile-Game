@@ -542,5 +542,5 @@ canvas {
     font-size: 5em;
     z-index: -1;
     background-color: white;
-    display: none;
+    visibility: hidden;
 }

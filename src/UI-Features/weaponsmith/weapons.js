@@ -92,7 +92,6 @@ export class Weapon {
     } else {
       dirs.push(dir);
     }
-    console.log(dirs);
 
     let projectiles = [];
     for (let i = 0; i < dirs.length; i++) {

@@ -1,16 +1,33 @@
 // OPTIMIZATION: render on a separate canvas at native spritesheet resolution, then scale it up to the display canvas
 // this will reduce img processing time per render cycle
 // or scale img to display size onload
+// OPTIMIZATION: too many loops
 
-// DO NOT REUSE:  bad code.
-// storming hackathon no sleep tonight storms storms of storms rusts and ruin merciful domi
+// imports
 import * as TWEEN from "@tweenjs/tween.js";
 import * as WP from "/src/UI-Features/weaponsmith/weapons.js";
 import * as PLANT from "./plant.js";
 import * as UTILS from "./utils.js";
 import * as ENEMY from "./enemy.js";
 import * as PF from "./pathfinder.js";
+
+/**
+ * Class responsible for rendering a tilemap, handling player movement, interactions, and game logic.
+ */
 export class TileMapRenderer {
+  /**
+   * Creates a new TileMapRenderer instance.
+   * @param {Object} tileMap - The tilemap data.
+   * @param {HTMLImageElement} spritesheet - The spritesheet image for tiles.
+   * @param {number} scale - The scaling factor for rendering.
+   * @param {HTMLCanvasElement} canvas - The main canvas for rendering the game.
+   * @param {HTMLImageElement} playerSpritesheet - The spritesheet for the player's idle animation.
+   * @param {HTMLImageElement} walkSpritesheet - The spritesheet for the player's walk animation.
+   * @param {HTMLImageElement} runSpritesheet - The spritesheet for the player's run animation.
+   * @param {HTMLCanvasElement} uiCanvas - The canvas for rendering UI elements.
+   * @param {HTMLImageElement} vegSpritesheet5012 - Spritesheet for plants (stages 0, 1, 2, 5).
+   * @param {HTMLImageElement} vegSpritesheet34 - Spritesheet for plants (stages 3, 4).
+   */
   constructor(
     tileMap,
     spritesheet,
@@ -145,6 +162,9 @@ export class TileMapRenderer {
       this.GAMEBEGIN = true;
       this.page2.style.display = "none";
     });
+    this.page3.addEventListener("click", () => {
+      location.reload();
+    });
 
     this.totalAmmo = 0;
     this.MAX_AMMO = 100;
@@ -167,7 +187,7 @@ export class TileMapRenderer {
     this.weapons = [];
     this.currentWeapon = null;
     // more ui shenanigans
-    this.tweenGroup = new TWEEN.Group(); // womp global depr
+    this.tweenGroup = new TWEEN.Group(); // global tween group deprecated
     // guns guns guns
     this.enableGun = true;
     // pve
@@ -180,6 +200,7 @@ export class TileMapRenderer {
     this.grid = null;
     this.ogGrid = null;
 
+    // stats
     this.baseStats = {
       health: 15,
       speed: 3.5,
@@ -188,7 +209,7 @@ export class TileMapRenderer {
       exp: 10,
       bulletSpeed: 2,
     };
-    this.currentWave = 5;
+    this.currentWave = 1;
     this.waves = {
       1: {
         nEnemies: 5,
@@ -223,7 +244,7 @@ export class TileMapRenderer {
         expMul: 1.6,
       },
       5: {
-        nEnemies: 1,
+        nEnemies: 15,
         healthMul: 1.8,
         speedMul: 1.4,
         damageMul: 1.4,
@@ -258,7 +279,9 @@ export class TileMapRenderer {
     this.currentGLOBALmodifiers = {};
     this.startGame = false;
   }
-
+  /**
+   * Initializes the game by loading assets, setting up the canvas, and adding event listeners.
+   */
   async init() {
     this.gunSound = new Audio("AUDIO/gun.mp3");
     this.collideSound = new Audio("AUDIO/collide.mp3");
@@ -326,12 +349,16 @@ export class TileMapRenderer {
 
     this.fillShop(this.buyAbleWeapons);
     this.syncMoney();
-    this.teleportPlayer(0, 0);
+    this.teleportPlayer(7, 7);
     this.cheatyGetGun();
     this.initGun();
   }
 
   // ANIMATE //
+  /**
+   * Main animation loop. Clears the canvas, redraws all layers, updates and draws plants, handles player movement,
+   * collision detection, enemy AI, UI updates, and more.
+   */
   animate() {
     if (!this.GAMEBEGIN) {
       requestAnimationFrame(() => this.animate());
@@ -359,16 +386,13 @@ export class TileMapRenderer {
     this.projectileCollisionDetection();
     this.drawPlayer();
     this.drawAllEnemies();
-    // this.drawDayNightCycle();
-    // this.debugPlayerDot();
+
     this.updateHealthUi();
     this.updateEXPUi();
     this.updateBuffs();
     this.drawBuffs();
     this.waveHandler();
-    // this.drawGrid();
-    // this.drawEnemyPath();
-    // this.grid = this.buildAstarGrid();
+
     if (this.nRenderCycles >= this.UPDATE_PATH_CYCLE) {
       this.nRenderCycles = 0;
       if (this.enemies.length > 0) {
@@ -377,15 +401,7 @@ export class TileMapRenderer {
     }
     let interactible = this.findClosestInteractible();
     if (interactible) {
-      // console.log(interactible);
       this.handleInteraction(interactible);
-      this.ctx.fillStyle = "rgba(255,0,255,0.5)";
-      this.ctx.fillRect(
-        interactible.x * this.tileWidth * this.scale - this.offsetX,
-        interactible.y * this.tileWidth * this.scale - this.offsetY,
-        16 * this.scale,
-        16 * this.scale,
-      );
     } else {
       this.hideInteractableUI();
     }
@@ -396,13 +412,13 @@ export class TileMapRenderer {
     this.update();
     requestAnimationFrame(() => this.animate());
   }
-
+  /**
+   * Updates player position based on keyboard input, handles collision detection,
+   * and updates camera position.
+   */
   update() {
     // beautiful beautiful beautiful
-    // const tile = this.getTilePosition(this.width / 2, this.height / 2);
-    // console.log("tile", tile);
-    // console.log("tileoffset", this.getTileOffset(tile.x, tile.y));
-    // console.log("offset", this.offsetX, this.offsetY);
+
     let oldX = this.player.x;
     let oldY = this.player.y;
 
@@ -491,12 +507,18 @@ export class TileMapRenderer {
   }
 
   // DRAWS //
+  /**
+   * Draws all layers of the tilemap.
+   */
   drawAllLayers() {
     for (let i = this.tileMap.layers.length - 1; i >= 0; i--) {
       this.drawLayer(this.tileMap.layers[i]);
     }
   }
-
+  /**
+   * Draws a single layer of the tilemap.
+   * @param {Object} layer - The layer data to draw.
+   */
   drawLayer(layer) {
     const precision = 10;
     const epsilonR = 0.009;
@@ -526,12 +548,12 @@ export class TileMapRenderer {
       );
     }
   }
-
+  /**
+   * Draws the player character based on the current action (IDLE, WALK, RUN) and direction.
+   */
   drawPlayer() {
-    // Check if configured time passed
     this.animDeltaT = Date.now() - this.animLastT;
 
-    // Action configuration: limits and speeds
     const actions = {
       IDLE: {
         frameCount: 4,
@@ -553,7 +575,6 @@ export class TileMapRenderer {
     const currentAction = actions[this.currentAction];
 
     if (currentAction) {
-      // Update frame based on elapsed time
       if (this.animDeltaT > currentAction.speed) {
         this[`last${this.currentAction}Frame`] =
           (this[`last${this.currentAction}Frame`] + 1) %
@@ -561,11 +582,13 @@ export class TileMapRenderer {
         this.animLastT = Date.now();
       }
 
-      // Draw the current action
       currentAction.draw();
     }
   }
 
+  /**
+   * Draws the player's idle animation frame.
+   */
   drawIdle() {
     const directions = {
       UP: this.playerTiles.up,
@@ -589,6 +612,9 @@ export class TileMapRenderer {
     }
   }
 
+  /**
+   * Draws the player's walk animation frame.
+   */
   drawWalk() {
     const directions = {
       UP: this.walkTiles.up,
@@ -612,6 +638,9 @@ export class TileMapRenderer {
     }
   }
 
+  /**
+   * Draws the player's run animation frame.
+   */
   drawRun() {
     const directions = {
       UP: this.runTiles.up,
@@ -635,6 +664,9 @@ export class TileMapRenderer {
     }
   }
 
+  /**
+   * Redraws the tilemap and player. (Currently unused)
+   */
   redraw() {
     this.ctx.clearRect(0, 0, this.width, this.height);
     this.drawAllLayers();
@@ -642,33 +674,36 @@ export class TileMapRenderer {
     this.drawDayNightCycle();
   }
 
+  /**
+   * Draws the day-night cycle overlay. (Currently unused)
+   */
   drawDayNightCycle() {
-    const currentTime = this.gameTime % 1200000; // 24-hour cycle in ms
+    const currentTime = this.gameTime % 1200000;
     const hour = (currentTime / this.msPerHour) % 24;
     let color;
     if (hour >= 6 && hour < 12) {
-      // Morning (6 AM to 12 PM)
+      // mornin
       color = this.interpolateColor(
         "rgba(255, 255, 255, 0)",
         "rgba(255, 255, 255, 0)",
         (hour - 6) / 6,
       );
     } else if (hour >= 12 && hour < 18) {
-      // Afternoon (12 PM to 6 PM)
+      // post mornin
       color = this.interpolateColor(
         "rgba(255, 255, 255, 0)",
         "rgba(255, 255, 255, 0)",
         (hour - 12) / 6,
       );
     } else if (hour >= 18 && hour < 24) {
-      // Evening (6 PM to 12 AM)
+      // post post mornin
       color = this.interpolateColor(
         "rgba(255, 255, 255, 0)",
         "rgba(0, 0, 128, 0.5)",
         (hour - 18) / 6,
       );
     } else {
-      // Night (12 AM to 6 AM)
+      // eepy time
       color = this.interpolateColor(
         "rgba(0, 0, 42, 0.5)",
         "rgba(255, 255, 255, 0)",
@@ -680,6 +715,9 @@ export class TileMapRenderer {
     this.ctx.fillRect(0, 0, this.width, this.height);
   }
 
+  /**
+   * Draws buffs on the canvas.
+   */
   drawBuffs() {
     for (let i of this.actualBuffs) {
       this.ctx.fillStyle = i.color;
@@ -694,6 +732,11 @@ export class TileMapRenderer {
     }
   }
 
+  /**
+   * Checks if the player is colliding with a buff and picks it up.
+   * @param {number} x - The x-coordinate of the tile to check.
+   * @param {number} y - The y-coordinate of the tile to check.
+   */
   pickUpBuff(x, y) {
     for (let i of this.actualBuffs) {
       if (i.x === x && i.y === y) {
@@ -704,6 +747,9 @@ export class TileMapRenderer {
     }
   }
 
+  /**
+   * Updates the duration of active buffs and applies their effects to the player.
+   */
   updateBuffs() {
     // reset
     this.activePlayerModifiers.speed = 1;
@@ -756,7 +802,10 @@ export class TileMapRenderer {
     }
     // console.log(this.activePlayerModifiers);
   }
-
+  /**
+   * Draws the zoom effect used for transitions
+   * @param {number} radius - The radius of the zoom circle.
+   */
   drawZoomEffect(radius) {
     this.uiCtx.clearRect(0, 0, this.uiCanvas.width, this.uiCanvas.height);
     this.uiCtx.fillStyle = "rgba(0, 0, 0, 1)";
@@ -774,7 +823,10 @@ export class TileMapRenderer {
     this.uiCtx.fill();
     this.uiCtx.globalCompositeOperation = "source-over";
   }
-
+  /**
+   * Starts the zoom effect animation.
+   * @param {string} dir - The direction of the zoom ("in" or "out").
+   */
   startZoomEffect(dir) {
     const duration = 1000; // ms
     const finalRadius = 150;
@@ -828,7 +880,12 @@ export class TileMapRenderer {
     // this.testTween.chain(this.testTweenStep2);
     this.testTween.start();
   }
-
+  /**
+   * Converts screen coordinates to tile coordinates.
+   * @param {number} screenX - The x-coordinate on the screen.
+   * @param {number} screenY - The y-coordinate on the screen.
+   * @returns {Object} An object with `x` and `y` properties representing the tile coordinates.
+   */
   getTilePosition(screenX, screenY) {
     const tileX =
       (screenX + this.offsetX) / (this.tileWidth * this.scale * this.zoom);
@@ -836,7 +893,12 @@ export class TileMapRenderer {
       (screenY + this.offsetY) / (this.tileWidth * this.scale * this.zoom);
     return { x: tileX, y: tileY };
   }
-
+  /**
+   * Calculates the offset required to center the camera on a given tile.
+   * @param {number} tileX - The x-coordinate of the tile.
+   * @param {number} tileY - The y-coordinate of the tile.
+   * @returns {Object} An object containing the calculated `offsetX` and `offsetY`.
+   */
   getTileOffset(tileX, tileY) {
     const offsetX =
       tileX * this.tileWidth * this.scale * this.zoom - this.width / 2;
@@ -846,6 +908,11 @@ export class TileMapRenderer {
   }
 
   // TELEPORT //
+  /**
+   * Teleports the player to a specific tile coordinate.
+   * @param {number} x - The x-coordinate of the tile to teleport to.
+   * @param {number} y - The y-coordinate of the tile to teleport to.
+   */
   teleportPlayer(x, y) {
     // ABS TILE COORDs!!!
     let newOffset = this.getTileOffset(x, y);
@@ -853,7 +920,9 @@ export class TileMapRenderer {
     this.player.x = newOffset.offsetX;
     this.player.y = newOffset.offsetY;
   }
-
+  /**
+   * Draws a red dot the player's position debugging.
+   */
   debugPlayerDot() {
     this.ctx.fillStyle = "red";
     this.ctx.fillRect(
@@ -878,6 +947,12 @@ export class TileMapRenderer {
   }
 
   // HELPERs  //
+  /**
+   * Organizes player tileset by direction (up, down, left, right).
+   * @param {number} n - The number of frames per direction.
+   * @param {Object} tileset - The tileset object containing the image tiles.
+   * @returns {Object} The organized tileset.
+   */
   organizePlayerTileSet(n, tileset) {
     let newPlayerTileSet = {
       up: {},
@@ -905,11 +980,13 @@ export class TileMapRenderer {
     return newPlayerTileSet;
   }
 
+  /**
+   * Organizes the plant tileset based on growth stages and vegetable types.
+   */
   organizePlantTileset() {
-    const tilesets = this.veg5012; // First tileset
-    const tileset34 = this.veg34; // Second tileset
+    const tilesets = this.veg5012;
+    const tileset34 = this.veg34;
 
-    // Initialize the plantTileSet with vegetable keys
     let plantTileSet = {
       CARROT: {},
       CAULI: {},
@@ -957,7 +1034,13 @@ export class TileMapRenderer {
     this.offsetY =
       (this.height - this.tileMap.mapHeight * this.tileWidth * this.scale) / 2;
   }
-
+  /**
+   * Interpolates between two RGBA colors.
+   * @param {string} color1 - The first RGBA color string.
+   * @param {string} color2 - The second RGBA color string.
+   * @param {number} factor - The interpolation factor between 0 and 1.
+   * @returns {string} The interpolated RGBA color string.
+   */
   interpolateColor(color1, color2, factor) {
     const c1 = this.rgbaToRgb(color1);
     const c2 = this.rgbaToRgb(color2);
@@ -970,6 +1053,11 @@ export class TileMapRenderer {
     return `rgba(${result.r}, ${result.g}, ${result.b}, ${result.a})`;
   }
 
+  /**
+   * Converts an RGBA color string to an RGB object.
+   * @param {string} rgba - The RGBA color string.
+   * @returns {Object} An object with `r`, `g`, `b`, and `a` properties.
+   */
   rgbaToRgb(rgba) {
     // epic regex time
     const parts = rgba.match(/rgba?\((\d+), (\d+), (\d+),? ?(\d?.?\d+)?\)/);
@@ -982,6 +1070,12 @@ export class TileMapRenderer {
   }
 
   // COLLISION DETECTION //
+  /**
+   * Checks for collisions between the player and collidable tiles.
+   * @param {number} x - The player's x-coordinate.
+   * @param {number} y - The player's y-coordinate.
+   * @returns {boolean} True if a collision occurred, false otherwise.
+   */
   checkCollision(x, y) {
     const newX = x;
     const newY = y;
@@ -1047,6 +1141,12 @@ export class TileMapRenderer {
   }
 
   // from pong
+  /**
+   * Checks for collision between a circle and a rectangle.
+   * @param {Object} a - The circle object with `x`, `y`, and `radius` properties.
+   * @param {Object} b - The rectangle object with `x`, `y`, `width`, and `height` properties.
+   * @returns {Object} An object containing `collision` (boolean) and `normal` (Vec2).
+   */
   circleRect(a, b) {
     const EPSILON = 0.0001; // margin of error
     // A IS THE CIRCLE
@@ -1092,6 +1192,9 @@ export class TileMapRenderer {
     return { collision: isColliding, normal: normal };
   }
 
+  /**
+   * Checks for collisions between enemy characters and player bullets.
+   */
   enemyBulletCollisionCheck() {
     for (let i of this.currentWeapon.projectiles) {
       for (let j of this.enemies) {
@@ -1108,7 +1211,6 @@ export class TileMapRenderer {
             if (this.hp > 100) {
               this.hp = 100;
             }
-            console.log("COINS", this.coins);
           }
           i.alive = false;
         }
@@ -1138,6 +1240,10 @@ export class TileMapRenderer {
     }
   }
 
+  /**
+   * Finds the closest interactible tile to the player.
+   * @returns {Object | null} The closest interactible tile, or null if none are within range.
+   */
   findClosestInteractible() {
     const interactibleLayer = this.tileMap.layers.find(
       (layer) => layer.name === "INTERACTIBLES",
@@ -1185,6 +1291,10 @@ export class TileMapRenderer {
     return closestTile;
   }
 
+  /**
+   * Handles interaction with interactible tiles.
+   * @param {Object} tile - The interactible tile.
+   */
   handleInteraction(tile) {
     if (!tile) {
       this.hideInteractableUI();
@@ -1197,7 +1307,8 @@ export class TileMapRenderer {
       94: "ANVIL",
       99: "BED",
       100: "BED",
-      92: "WEAPON_BUCKET",
+      0: "WEAPON_BUCKET",
+      1: "WEAPON_BUCKET",
       90: "LADDER",
       89: "SIGN",
       91: "BEETROOT",
@@ -1240,7 +1351,7 @@ export class TileMapRenderer {
         break;
       case "WEAPON_BUCKET":
         // console.log("WEAPON_BUCKET");
-        this.showInteractableUI("Press E to get a weapon");
+        this.showInteractableUI("Press E to use the anvil");
         break;
       case "LADDER":
         // console.log("LADDER");
@@ -1260,7 +1371,9 @@ export class TileMapRenderer {
     }
     this.currentInteractible = interactionMap[tile.id];
   }
-
+  /**
+   * Performs the actual interaction logic based on the current interactible.
+   */
   handleActualInteraction() {
     switch (this.currentInteractible) {
       case "ANVIL":
@@ -1292,19 +1405,27 @@ export class TileMapRenderer {
         break;
     }
   }
-
+  /**
+   * Self explanatory.
+   * @param {string} message - The message to display.
+   */
   showInteractableUI(message) {
     if (this.isUIOpen) return;
     this.interactUI.innerText = message;
     this.interactUI.style.top = "90%";
     this.interactUI.style.opacity = 1;
   }
-
+  /**
+   * Self explanatory.
+   */
   hideInteractableUI() {
     this.interactUI.style.top = "120%";
     this.interactUI.style.opacity = 0;
   }
 
+  /**
+   * Self explanatory.
+   */
   sleepSequence() {
     if (this.isUIOpen) return;
     // zoom to black
@@ -1319,6 +1440,10 @@ export class TileMapRenderer {
   }
 
   // ECONOMY - SHOP //
+  /**
+   * Purchases an item from the shop and adds it to the player's inventory.
+   * @param {string} item - The name of the item to buy.
+   */
   buyItem(item) {
     // find the item in the shop
     const itemToBuy = this.buyAbleWeapons.find((i) => i.name === item);
@@ -1331,6 +1456,8 @@ export class TileMapRenderer {
       // add the item to player's inventory
       this.weapons.push(itemToBuy);
       console.log("Bought: ", itemToBuy);
+      this.currentWeapon = itemToBuy;
+      this.initGun();
       // remove the item from the shop
       this.buyAbleWeapons = this.buyAbleWeapons.filter(
         (i) => i.name !== itemToBuy.name,
@@ -1341,7 +1468,10 @@ export class TileMapRenderer {
       console.log("Not enough money");
     }
   }
-
+  /**
+   * Fills the shop UI with available weapons.
+   * @param {Array<Object>} weapons - An array of weapon objects.
+   */
   fillShop(weapons) {
     // clear the shop
     this.scrollItemsContainer.innerHTML = "";
@@ -1386,6 +1516,9 @@ export class TileMapRenderer {
     }
   }
 
+  /**
+   * Updates the gun UI elements with the current weapon's information.
+   */
   updateGunUi() {
     if (!this.currentWeapon) return;
     this.wpTitle.innerHTML = this.currentWeapon.name;
@@ -1402,6 +1535,9 @@ export class TileMapRenderer {
     }
   }
 
+  /**
+   * Self explanatory.
+   */
   updateHealthUi() {
     this.hpVal.innerHTML =
       this.hp * this.activePlayerModifiers.health +
@@ -1410,6 +1546,9 @@ export class TileMapRenderer {
     const hpPct = (this.hp / this.MAX_HP) * 100;
     this.hpBar.style.width = hpPct + "%";
   }
+  /**
+   * Self explanatory.
+   */
   updateEXPUi() {
     this.expVal.innerHTML =
       this.exp + "/" + this.expToNextLevel(this.level + 1);
@@ -1417,6 +1556,9 @@ export class TileMapRenderer {
     this.expBar.style.width = expPct + "%";
     this.expTitle.innerHTML = "EXP " + "(LV. " + this.level + ")";
   }
+  /**
+   * Self explanatory.
+   */
   updateHeaderUi() {
     this.waveHeader.innerHTML = "WAVE " + this.currentWave;
     try {
@@ -1428,32 +1570,47 @@ export class TileMapRenderer {
   }
   // UI TRANSITIONS //
   //
+  /**
+   * Self explanatory.
+   */
   syncMoney() {
     this.moneyInd.innerHTML = this.coins;
   }
-
+  /**
+   * Self explanatory.
+   */
   moveUIUp() {
     this.mainShopContainer.classList.add("up");
     this.mainShopContainer.classList.remove("down");
   }
 
-  // Function to move the UI down
+  /**
+   * Self explanatory.
+   */
   moveUIDown() {
     this.mainShopContainer.classList.add("down");
     this.mainShopContainer.classList.remove("up");
   }
-
+  /**
+   * Self explanatory.
+   */
   moveMoneyUp() {
     this.moneyContainer.classList.add("up");
     this.moneyContainer.classList.remove("down");
   }
-
+  /**
+   * Self explanatory.
+   */
   moveMoneyDown() {
     this.moneyContainer.classList.add("down");
     this.moneyContainer.classList.remove("up");
   }
 
   // DMG //
+  /**
+   * Self explanatory.
+   * @param {number} dmg - The amount of damage to deal.
+   */
   damagePlayer(dmg) {
     this.hp -= dmg;
     if (this.hp <= 0) {
@@ -1461,7 +1618,10 @@ export class TileMapRenderer {
       this.gameOver();
     }
   }
-
+  /**
+   * Self explanatory.
+   * @param {number} heal - The amount of health to heal.
+   */
   healPlayer(heal) {
     this.hp += heal;
     if (this.hp > this.MAX_HP) {
@@ -1470,6 +1630,7 @@ export class TileMapRenderer {
   }
 
   gameOver() {}
+  // SCOPE CREEP //
   // HARVESTING //
   plantParse() {
     // scope creep
@@ -1669,7 +1830,12 @@ export class TileMapRenderer {
     }
     this.spawnEnemyAt(Math.floor(spawnX), Math.floor(spawnY));
   }
-
+  /**
+   * Spawns an enemy at the specified tile coordinates.
+   * @param {number} x - The x-coordinate of the tile.
+   * @param {number} y - The y-coordinate of the tile.
+   * @param {number} [maxHealth=10] - The maximum health of the enemy.
+   */
   spawnEnemyAt(x, y, maxHealth = 10) {
     const tileW = this.tileWidth * this.scale;
     const enemy = new ENEMY.Enemy(maxHealth, 5, 0.05, x, y, tileW, tileW);
@@ -2198,14 +2364,18 @@ export class TileMapRenderer {
 
   winGame() {
     this.winSound.play();
-    this.success.style.display = "block";
+    this.success.style.visibility = "visible";
     this.success.innerHTML = "YOU WIN";
-    this.success.style.zIndex = 1000;
+    this.success.style.zIndex = 700;
+    this.canvas.style.visibility = "hidden";
+    this.GAMEBEGIN = false;
   }
   loseGame() {
     this.loseSound.play();
-    this.success.style.display = "block";
+    this.success.style.visibility = "visible";
     this.success.innerHTML = "YOU LOSE";
-    this.success.style.zIndex = 1000;
+    this.success.style.zIndex = 700;
+    this.canvas.style.visibility = "hidden";
+    this.GAMEBEGIN = false;
   }
 }

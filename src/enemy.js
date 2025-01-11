@@ -29,7 +29,6 @@ export class Enemy {
     if (this.health <= 0) {
       this.isDead = true;
     }
-    console.log(this.health);
     if (this.path.length === 0) return;
     if (this.isDead) return;
 
