@@ -76,6 +76,7 @@ canvas {
     z-index: 10;
     border: 7px solid #c28569;
     transition: top 0.5s ease;
+    pointer-events: none;
 }
 
 .mainShopContainer.up {
@@ -99,6 +100,7 @@ canvas {
     padding-bottom: 10px;
     border-bottom: 7px solid #c28569;
     /* z-index:; */
+    pointer-events: none;
 }
 
 .shopUiContainer {
@@ -243,6 +245,7 @@ canvas {
     justify-content: center;
     width: 100%;
     height: 25%;
+    pointer-events: none;
 }
 
 .gunStat {
