@@ -61,7 +61,7 @@ canvas {
 }
 
 .mainShopContainer {
-    /* visibility: hidden; */
+    visibility: hidden;
     position: absolute;
     top: 50%;
     left: 50%;
@@ -307,6 +307,7 @@ canvas {
     z-index: 200;
     transition: top 0.5s ease;
     top: 8px;
+    visibility: hidden;
 }
 
 .moneyIndContainer.up {

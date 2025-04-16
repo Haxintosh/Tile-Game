@@ -3,6 +3,8 @@
 // or scale img to display size onload
 
 import * as TWEEN from "@tweenjs/tween.js";
+import * as WP from "/src/UI-Features/weaponsmith/weapons.js";
+import * as PLANT from "./plant.js";
 import * as UTILS from "./utils.js";
 import * as ENEMY from "./enemy.js";
 import * as PF from "./pathfinder.js";
@@ -1071,7 +1073,7 @@ export class TileMapRenderer {
         }
         this.grid[step.y][step.x] = 1;
       }
-      // console.log(newPath, tilePos);
+      console.log(newPath, tilePos);
       // newPath.pop(); // remove player position from path
       enemy.setPath(newPath);
     }
@@ -1402,6 +1404,11 @@ export class TileMapRenderer {
       if (this.enableGun && this.currentWeapon) {
         this.currentWeapon.shoot(origin, target);
       }
+    });
+
+    this.buyButton.addEventListener("click", () => {
+      let currentSelectedItem = document.getElementById("name").innerHTML;
+      this.buyItem(currentSelectedItem);
     });
   }
 }
