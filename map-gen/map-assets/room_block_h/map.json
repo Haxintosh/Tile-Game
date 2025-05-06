@@ -1,1 +1,1 @@
-{"tileSize":16,"mapWidth":1,"mapHeight":4,"layers":[{"name":"collision","tiles":[{"id":"0","x":0,"y":0},{"id":"0","x":0,"y":1},{"id":"0","x":0,"y":2},{"id":"0","x":0,"y":3}],"collider":false},{"name":"decoration","tiles":[],"collider":false},{"name":"floor","tiles":[],"collider":false}]}
+{"tileSize":16,"mapWidth":1,"mapHeight":4,"layers":[{"name":"collision","tiles":[{"id":"0","x":0,"y":0},{"id":"0","x":0,"y":1},{"id":"0","x":0,"y":2},{"id":"0","x":0,"y":3}],"collider":true},{"name":"decoration","tiles":[],"collider":false},{"name":"floor","tiles":[],"collider":false}]}
