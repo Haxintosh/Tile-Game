@@ -86,7 +86,11 @@ export class TileMapRenderer {
     this.currentCollisionBlock = null;
     this.isMovementLocked = false;
     this.currentInteractible = null;
-
+    this.screenCenterX = window.innerWidth / 2;
+    this.screenCenterY = window.innerHeight / 2;
+    this.playerVelocity = new UTILS.Vec2(0, 0);
+    this.inputVector = new UTILS.Vec2(0, 0);
+    this.collisionAdjustmentVector = new UTILS.Vec2(0, 0);
     // UI
     this.isUIOpen = false;
     this.tweenGroup = new TWEEN.Group(); // womp global depr
@@ -104,6 +108,8 @@ export class TileMapRenderer {
     // PATHFINDER
     this.grid = null;
     this.ogGrid = null;
+
+    this.collisionGrid = this.generateIndexedArray(this.tileMap);
   }
 
   async init() {
@@ -136,6 +142,9 @@ export class TileMapRenderer {
 
     this.tileWidth = (this.canvas.width * 2) / this.tileMap.mapWidth;
 
+    this.playerWidth = 1 * this.tileWidth * this.scale * 0.5;
+    this.playerHeight = 1 * this.tileWidth * this.scale * 0.5;
+
     this.drawAllLayers();
 
     this.player = {
@@ -144,10 +153,8 @@ export class TileMapRenderer {
     };
 
     this.minInteractionDistance = this.tileWidth * this.scale * 1.5;
-
-    this.animate();
-
     this.teleportPlayer(7, 7);
+    this.animate();
   }
 
   // ANIMATE //
@@ -212,37 +219,46 @@ export class TileMapRenderer {
       this.speedMultiplier = 1;
     }
     if (this.keys.ArrowUp) {
-      newY -= this.speed * this.speedMultiplier;
+      this.inputVector.y = -this.speed * this.speedMultiplier;
       this.lastDirection = "UP";
     }
     if (this.keys.ArrowDown) {
-      newY += this.speed * this.speedMultiplier;
+      this.inputVector.y = this.speed * this.speedMultiplier;
       this.lastDirection = "DOWN";
     }
     if (this.keys.ArrowLeft) {
-      newX -= this.speed * this.speedMultiplier;
+      this.inputVector.x = -this.speed * this.speedMultiplier;
       this.lastDirection = "LEFT";
     }
     if (this.keys.ArrowRight) {
-      newX += this.speed * this.speedMultiplier;
+      this.inputVector.x = this.speed * this.speedMultiplier;
       this.lastDirection = "RIGHT";
     }
 
-    if (
-      !this.checkCollision(newX + this.playerOffsetX, newY + this.playerOffsetY)
-    ) {
-      this.player.x = newX;
-      this.player.y = newY;
-    } else {
-      if (this.currentCollisionBlock != "x") {
-        this.player.x = newX;
-        console.log("Y");
-      }
-      if (this.currentCollisionBlock != "y") {
-        this.player.y = newY;
-        console.log("X");
-      }
-    }
+    // if (
+    //   !this.checkCollision(newX + this.playerOffsetX, newY + this.playerOffsetY)
+    // ) {
+    //   this.player.x = newX;
+    //   this.player.y = newY;
+    // } else {
+    //   if (this.currentCollisionBlock != "x") {
+    //     this.player.x = newX;
+    //     console.log("Y");
+    //   }
+    //   if (this.currentCollisionBlock != "y") {
+    //     this.player.y = newY;
+    //     console.log("X");
+    //   }
+    // }
+    //
+    this.player.x += this.inputVector.x;
+    this.player.y += this.inputVector.y;
+    this.player.x += this.playerVelocity.x;
+    this.player.y += this.playerVelocity.y;
+    this.inputVector.x = 0;
+    this.inputVector.y = 0;
+    this.playerVelocity.x = 0;
+    this.playerVelocity.y = 0;
     if (
       this.keys.ArrowUp ||
       this.keys.ArrowDown ||
@@ -281,6 +297,13 @@ export class TileMapRenderer {
     this.prevX = this.player.x + this.playerOffsetX;
     this.prevY = this.player.y + this.playerOffsetY;
     this.gameTime += this.deltaT;
+    this.drawPlayerHitbox();
+    const candidates = this.broadPhaseDetection();
+    const collisionTiles = this.narrowPhaseDetection(candidates);
+    if (collisionTiles.length > 0) {
+      this.resolveCollision(collisionTiles);
+    }
+    // this.resolveCollision(collisionTiles);
   }
 
   // DRAWS //
@@ -550,6 +573,10 @@ export class TileMapRenderer {
     return { offsetX, offsetY };
   }
 
+  // worldCanvasPositionToTilePosition(worldX, worldY){
+
+  // }
+
   // TELEPORT // (TILE COORDS)
   teleportPlayer(x, y) {
     let newOffset = this.getTileOffset(x, y);
@@ -640,6 +667,8 @@ export class TileMapRenderer {
 
   // COLLISION DETECTION //
   checkCollision(x, y) {
+    this.currentCollisionBlock = null;
+    return false;
     const newX = x;
     const newY = y;
     const playerWidth = 10; // Player width
@@ -700,6 +729,213 @@ export class TileMapRenderer {
     }
 
     return collisionX || collisionY;
+  }
+
+  broadPhaseDetection() {
+    const candidates = [];
+
+    // console.log(this.player, this.offsetX, this.playerWidth);
+    let playerBox = {
+      x: {
+        min: Math.floor(this.screenCenterX - this.playerWidth),
+        max: Math.ceil(this.screenCenterX + this.playerWidth),
+      },
+      y: {
+        min: Math.floor(this.screenCenterY - this.playerHeight),
+        max: Math.ceil(this.screenCenterY + this.playerHeight),
+      },
+    };
+
+    const minPosition = this.getTilePosition(playerBox.x.min, playerBox.y.min);
+    const maxPosition = this.getTilePosition(playerBox.x.max, playerBox.y.max);
+
+    const tilePlayerBox = {
+      x: {
+        min: Math.floor(minPosition.x),
+        max: Math.max(maxPosition.x),
+      },
+      y: {
+        min: Math.floor(minPosition.y),
+        max: Math.max(maxPosition.y),
+      },
+    };
+
+    // this.ctx.fillStyle = "rgba(255,0,0,0.5)";
+    // this.ctx.fillRect(
+    //   playerBox.x.min,
+    //   playerBox.y.min,
+    //   playerBox.x.max - playerBox.x.min,
+    //   playerBox.y.max - playerBox.y.min,
+    // );
+    let nInt = 0;
+
+    for (let layer of this.tileMap.layers) {
+      if (layer.collider) {
+        for (let x = tilePlayerBox.x.min; x <= tilePlayerBox.x.max; x++) {
+          for (let y = tilePlayerBox.y.min; y <= tilePlayerBox.y.max; y++) {
+            if (
+              x < 0 ||
+              y < 0 ||
+              x >= this.tileMap.mapWidth ||
+              y >= this.tileMap.mapHeight
+            ) {
+              continue;
+            }
+            // console.log(this.collisionGrid);
+            let collidingBlock = this.collisionGrid[y][x];
+            if (collidingBlock) {
+              this.drawSquareFromTileXYContrast(x, y);
+              candidates.push({ x, y, id: collidingBlock });
+            }
+            nInt++;
+          }
+        }
+      }
+    }
+
+    console.log("Broadphase:", nInt, "its");
+    return candidates;
+  }
+
+  narrowPhaseDetection(candidates) {
+    const collisionTiles = [];
+
+    const playerTilePostion = this.getTilePosition(
+      this.screenCenterX,
+      this.screenCenterY,
+    );
+
+    const normalizedPlayerWidth =
+      this.playerWidth / this.scale / this.tileWidth;
+    const normalizedPlayerHeight =
+      this.playerHeight / this.scale / this.tileWidth;
+
+    for (const tile of candidates) {
+      const closestPoint = new UTILS.Vec2(
+        Math.max(tile.x, Math.min(playerTilePostion.x, tile.x + 1)),
+        Math.max(tile.y, Math.min(playerTilePostion.y, tile.y + 1)),
+      );
+
+      const dx = closestPoint.x - playerTilePostion.x;
+      const dy = closestPoint.y - playerTilePostion.y;
+      if (this.pointIntersectPlayer(playerTilePostion, closestPoint)) {
+        this.ctx.fillStyle = "rgba(0,255,0,0.5)";
+        this.ctx.fillRect(
+          tile.x * this.tileWidth * this.scale - this.offsetX,
+          tile.y * this.tileWidth * this.scale - this.offsetY,
+          this.tileWidth * this.scale,
+          this.tileWidth * this.scale,
+        );
+
+        // corrections
+        const overlapX = normalizedPlayerWidth - Math.sqrt(dx ** 2 * 2);
+        const overlapY = normalizedPlayerHeight / 2 - Math.abs(dy);
+
+        let normal;
+        let overlap;
+        if (overlapY < overlapX) {
+          overlap = overlapY;
+          normal = new UTILS.Vec2(0, -dy).normalize();
+        } else {
+          overlap = overlapX;
+          normal = new UTILS.Vec2(-dx, 0).normalize();
+        }
+
+        this.drawPoint(closestPoint.x, closestPoint.y);
+        const coll = { tile, normal, overlap };
+        collisionTiles.push(coll);
+      }
+    }
+    return collisionTiles;
+  }
+
+  resolveCollision(collisions) {
+    collisions.sort((a, b) => a.overlap < b.overlap);
+
+    // Ensure playerVelocity is initialized
+    if (!this.playerVelocity) {
+      this.playerVelocity = { x: 0, y: 0 };
+    }
+
+    for (const collision of collisions) {
+      const { tile, normal, overlap } = collision;
+      if (isNaN(normal.x) || isNaN(normal.y)) return;
+
+      let deltaPos = normal
+        .copy()
+        .scale(overlap)
+        .scale(this.scale)
+        .scale(this.tileWidth)
+        .scale(this.zoom);
+
+      const dampingFactor = 0.5;
+      deltaPos = deltaPos.scale(dampingFactor);
+
+      this.playerVelocity = this.playerVelocity.add(deltaPos);
+
+      this.playerVelocity = this.playerVelocity.scale(0.9);
+    }
+  }
+
+  pointIntersectPlayer(playerTilePos, point) {
+    console.log(playerTilePos, point);
+    const normalizedPlayerWidth =
+      this.playerWidth / this.scale / this.tileWidth;
+    const normalizedPlayerHeight =
+      this.playerHeight / this.scale / this.tileWidth;
+    // console.log(normalizedPlayerWidth, normalizedPlayerHeight);
+    const dx = point.x - playerTilePos.x;
+    const dy = point.y - playerTilePos.y;
+    const r2 = dx ** 2;
+    // console.log(
+    return (
+      Math.abs(dy) < normalizedPlayerHeight / 2 &&
+      r2 < normalizedPlayerWidth ** 2
+    );
+  }
+
+  isCollisionTileFromXY(x, y) {
+    return this.collisionGrid[y][x];
+  }
+
+  generateIndexedArray(tileMap) {
+    const map = this.generateEmptyArray(tileMap.mapHeight, tileMap.mapWidth);
+    // converts the tilemap map to a yx indexed array with id
+    for (let layer of tileMap.layers) {
+      if (layer.collider) {
+        console.log(layer);
+        for (let tile of layer.tiles) {
+          map[tile.y][tile.x] = tile.id;
+        }
+      }
+    }
+    console.log(map);
+    return map;
+  }
+
+  drawPlayerHitbox() {
+    return;
+    this.uiCtx.fillStyle = "rgba(255,0,0,0.5)";
+    this.uiCtx.fillRect(
+      this.screenCenterX - this.playerWidth / 2,
+      this.screenCenterY - this.playerHeight / 2,
+      this.playerWidth,
+      this.playerHeight,
+    );
+  }
+
+  drawPoint(tilePosX, tilePosY) {
+    this.ctx.fillStyle = "rgba(255,0,255,0.7)";
+    this.ctx.fillRect(
+      tilePosX * this.tileWidth * this.scale - this.offsetX - 5,
+      tilePosY * this.tileWidth * this.scale - this.offsetY - 5,
+      10 * this.scale,
+      10 * this.scale,
+    );
+  }
+
+  generateEmptyArray(x, y) {
+    return Array.from({ length: y }, () => Array(x).fill(null));
   }
 
   // from pong
@@ -1372,8 +1608,13 @@ export class TileMapRenderer {
           this.isUIOpen = false;
         }
       }
+      if (e.key === "UP" || e.key === "DOWN") {
+        this.inputVector.y = 0;
+      }
+      if (e.key === "LEFT" || e.key === "RIGHT") {
+        this.inputVector.x = 0;
+      }
     });
-
     addEventListener("keypress", (e) => {
       if (e.key === "e" || e.key === "E") {
         this.handleActualInteraction();

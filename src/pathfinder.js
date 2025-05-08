@@ -120,7 +120,7 @@ const grid = [
 ];
 
 const start = { x: 0, y: 0 };
-const goal = { x: 4, y: 4 };
+const goal = { x: 5, y: 5 };
 
 const path = aStar(grid, start, goal);
 // console.log(path);
