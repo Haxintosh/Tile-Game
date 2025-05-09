@@ -104,4 +104,7 @@ export class Vec2 {
     // DEG
     return this.rotate((angle * Math.PI) / 180);
   }
+  negate() {
+    return new Vec2(-this.x, -this.y);
+  }
 }
