@@ -99,8 +99,169 @@ function generateLevel() {
     }
 }
 
+// maps are 20x20 tiles, with hallways being 20 tiles long and 16x16 pixels tiles. each room needs to be offset by 40*16 ((20+20)*16)
+
+let renderedMap = []
+
+async function drawRoom(type, subtype, x, y) {
+    if (type === 1) {
+        const map = new Map('./map-assets/room_battle_1/spritesheet.png', x*40*16, y*40*16)
+        await map.loadMapFromFile('./map-assets/room_battle_1/map.json')
+        renderedMap.push(map)
+    }
+    if (type === 2) {
+        const map = new Map('./map-assets/room_start/spritesheet.png', x*40*16, y*40*16)
+        await map.loadMapFromFile('./map-assets/room_start/map.json')
+        renderedMap.push(map)
+    }
+    if (type === 3) {
+        const map = new Map('./map-assets/room_end/spritesheet.png', x*40*16, y*40*16)
+        await map.loadMapFromFile('./map-assets/room_end/map.json')
+        renderedMap.push(map)
+    }
+    if (type === 4) {
+        const map = new Map(`./map-assets/room_special_${subtype}/spritesheet.png`, x*40*16, y*40*16)
+        await map.loadMapFromFile(`./map-assets/room_special_${subtype}/map.json`)
+        renderedMap.push(map)
+    }
+
+    renderedMap.forEach((map) => {
+        map.render()
+    })
+}
+
+let renderedHalls = []
+
+async function drawHall(type, x, y) {
+    if (type === 'h') {
+        const map = new Map(`./map-assets/hall_h/spritesheet.png`, x*40*16+20*16, y*40*16+6*16)
+        await map.loadMapFromFile(`./map-assets/hall_h/map.json`)
+        renderedHalls.push(map)
+    }
+    if (type === 'v') {
+        const map = new Map(`./map-assets/hall_v/spritesheet.png`, x*40*16+7*16, y*40*16+20*16)
+        await map.loadMapFromFile(`./map-assets/hall_v/map.json`)
+        renderedHalls.push(map)
+    }
+
+    renderedHalls.forEach((map) => {
+        map.render()
+    })
+}
+
+let renderedBlocks = []
+
+async function drawBlock(type, x, y, lockdownBlock) {
+    if (type === 'hl') {
+        const map = new Map(`./map-assets/room_block_h/spritesheet.png`, x*40*16, y*40*16+7*16, [x, y], lockdownBlock)
+        await map.loadMapFromFile(`./map-assets/room_block_h/map.json`)
+        renderedBlocks.push(map)
+    }
+    if (type === 'hr') {
+        const map = new Map(`./map-assets/room_block_h/spritesheet.png`, x*40*16+19*16, y*40*16+7*16, [x, y], lockdownBlock)
+        await map.loadMapFromFile(`./map-assets/room_block_h/map.json`)
+        renderedBlocks.push(map)
+    }
+    if (type === 'vt') {
+        const map = new Map(`./map-assets/room_block_v/spritesheet.png`, x*40*16+8*16, y*40*16, [x, y], lockdownBlock)
+        await map.loadMapFromFile(`./map-assets/room_block_v/map.json`)
+        renderedBlocks.push(map)
+    }
+    if (type === 'vb') {
+        const map = new Map(`./map-assets/room_block_v/spritesheet.png`, x*40*16+8*16, y*40*16+19*16, [x, y], lockdownBlock)
+        await map.loadMapFromFile(`./map-assets/room_block_v/map.json`)
+        renderedBlocks.push(map)
+    }
+
+    renderedBlocks.forEach((map) => {
+        map.render()
+    })
+}
+
 function drawLevel() {
+    // draw rooms
+    for (let y = 0; y < 5; y++) {
+        for (let x = 0; x < 5; x++) {
+            drawRoom(Math.floor(grid[y][x]), (grid[y][x] % 1).toFixed(1).substring(2), x, y).catch(console.error)
+
+            if (grid[y][x] !== 0) {
+                // horizontal hallways
+                if (grid[y] && grid[y][x + 1] !== undefined) {
+                    if (grid[y][x + 1] !== 0) drawHall('h', x, y).catch(console.error)
+
+                    // generate blockade
+                    else {
+                        drawBlock('hr', x, y).catch(console.error)
+                    }
+                }
+                // vertical hallways
+                if (grid[y + 1] && grid[y + 1][x] !== undefined) {
+                    if (grid[y + 1][x] !== 0) drawHall('v', x, y).catch(console.error)
+                }
+
+                // blockades
+                if (grid[y] && grid[y][x - 1] === undefined || grid[y][x - 1] === 0) { // left
+                    drawBlock('hl', x, y).catch(console.error)
+                }
+                if (grid[y] && grid[y][x + 1] === undefined || grid[y][x + 1] === 0) { // right
+                    drawBlock('hr', x, y).catch(console.error)
+                }
+                if ((grid[y - 1] === undefined || grid[y - 1][x] === undefined) || grid[y - 1][x] === 0) {
+                    drawBlock('vt', x, y).catch(console.error)
+                }
+                if ((grid[y + 1] === undefined || grid[y + 1][x] === undefined) || grid[y + 1][x] === 0) {
+                    drawBlock('vb', x, y).catch(console.error)
+                }
+            }
+        }
+    }
     console.log(grid)
+}
+
+function lockdownRoom(x, y) {
+    drawBlock('hl', x, y, true).catch(console.error)
+    drawBlock('hr', x, y, true).catch(console.error)
+    drawBlock('vt', x, y, true).catch(console.error)
+    drawBlock('vb', x, y, true).catch(console.error)
+}
+
+function unlockRooms() {
+    renderedBlocks.forEach((block) => {
+        if (block.lockdownBlock) {
+            renderedBlocks.splice(block, 1) // only works if the map is being redrawn every frame
+        }
+    })
+}
+
+// finding which room to consider collisions (untested)
+playerX = 0 // temp, replace later. ideally, take the player's center.
+playerY = 0
+
+let previousCurrentRoom = null
+let currentRoom = null
+let currentBlocks = []
+
+function findCurrentRoom() {
+    renderedMap.forEach((map) => {
+        if (playerX >= map.x && playerX <= map.x + map.width*16 && playerY >= map.y && playerY <= map.y + map.height*16) {
+            currentRoom = map
+
+            // reset array
+            if (currentRoom !== currentRoom) currentBlocks = []
+
+            // associated blocks
+            renderedBlocks.forEach((block) => {
+                if (block.room === [currentRoom.x/(40*16), currentRoom.y/(40*16)]) {
+                    currentBlocks.push(block)
+                }
+            })
+        }
+    })
+    renderedHalls.forEach((map) => {
+        if (playerX >= map.x && playerX <= map.x + map.width*16 && playerY >= map.y && playerY <= map.y + map.height*16) {
+            currentRoom = map
+        }
+    })
 }
 
 generateLevel()
