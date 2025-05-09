@@ -247,7 +247,10 @@ function findCurrentRoom() {
             currentRoom = map
 
             // reset array
-            if (currentRoom !== currentRoom) currentBlocks = []
+            if (previousCurrentRoom !== currentRoom) {
+                currentBlocks = []
+                previousCurrentRoom = currentRoom
+            }
 
             // associated blocks
             renderedBlocks.forEach((block) => {
