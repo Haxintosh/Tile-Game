@@ -17,6 +17,8 @@ export class TileMapRenderer {
     runSpritesheet,
     uiCanvas,
   ) {
+    this.lastFrameTime = performance.now();
+    this.accumulator = 0;
     // SPRITESHEETS
     this.tileMap = tileMap;
     this.spritesheet = spritesheet;
@@ -88,9 +90,14 @@ export class TileMapRenderer {
     this.currentInteractible = null;
     this.screenCenterX = window.innerWidth / 2;
     this.screenCenterY = window.innerHeight / 2;
+
     this.playerVelocity = new UTILS.Vec2(0, 0);
     this.inputVector = new UTILS.Vec2(0, 0);
     this.collisionAdjustmentVector = new UTILS.Vec2(0, 0);
+    this.collisionCheckFrequency = 1000;
+    this.collisionStep = 1 / this.collisionCheckFrequency;
+    this.accumulator = 0;
+
     // UI
     this.isUIOpen = false;
     this.tweenGroup = new TWEEN.Group(); // womp global depr
@@ -101,8 +108,8 @@ export class TileMapRenderer {
 
     // PVE
     this.enemies = [];
-    this.SAFE_ZONE = 400; // currently doesn't work, no spawn zone around player
-    this.UPDATE_PATH_CYCLE = 20; // update path every 240 render cycles
+    this.SAFE_ZONE = 100; // currently doesn't work, no spawn zone around player
+    this.UPDATE_PATH_CYCLE = 8; // perf
     this.nRenderCycles = 0;
 
     // PATHFINDER
@@ -140,7 +147,7 @@ export class TileMapRenderer {
     this.addHooks();
     this.debug();
 
-    this.tileWidth = (this.canvas.width * 2) / this.tileMap.mapWidth;
+    this.tileWidth = 100; //(this.canvas.width * 2) / this.tileMap.mapWidth;
 
     this.playerWidth = 1 * this.tileWidth * this.scale * 0.5;
     this.playerHeight = 1 * this.tileWidth * this.scale * 0.5;
@@ -153,15 +160,23 @@ export class TileMapRenderer {
     };
 
     this.minInteractionDistance = this.tileWidth * this.scale * 1.5;
-    this.teleportPlayer(7, 7);
+    this.teleportPlayer(15, 15);
     this.animate();
   }
 
   // ANIMATE //
   animate() {
     this.nRenderCycles++;
-    this.deltaT = Date.now() - this.lastT;
-    this.lastT = Date.now();
+    this.deltaT = performance.now() - this.lastT;
+    this.lastT = performance.now();
+
+    this.accumulator += this.deltaT / 1000;
+    while (this.accumulator >= this.collisionStep) {
+      this.updatePlayerCollision();
+      this.accumulator -= this.collisionStep;
+    }
+
+    this.update();
 
     this.ctx.clearRect(0, 0, this.width, this.height);
 
@@ -196,16 +211,10 @@ export class TileMapRenderer {
     if (this.tweenGroup) {
       this.tweenGroup.update();
     }
-    this.update();
     requestAnimationFrame(() => this.animate());
   }
 
-  update() {
-    // beautiful beautiful beautiful
-    // const tile = this.getTilePosition(this.width / 2, this.height / 2);
-    // console.log("tile", tile);
-    // console.log("tileoffset", this.getTileOffset(tile.x, tile.y));
-    // console.log("offset", this.offsetX, this.offsetY);
+  update(dt) {
     let oldX = this.player.x;
     let oldY = this.player.y;
     let oldLastDirection = this.lastDirection;
@@ -235,30 +244,12 @@ export class TileMapRenderer {
       this.lastDirection = "RIGHT";
     }
 
-    // if (
-    //   !this.checkCollision(newX + this.playerOffsetX, newY + this.playerOffsetY)
-    // ) {
-    //   this.player.x = newX;
-    //   this.player.y = newY;
-    // } else {
-    //   if (this.currentCollisionBlock != "x") {
-    //     this.player.x = newX;
-    //     console.log("Y");
-    //   }
-    //   if (this.currentCollisionBlock != "y") {
-    //     this.player.y = newY;
-    //     console.log("X");
-    //   }
-    // }
-    //
     this.player.x += this.inputVector.x;
     this.player.y += this.inputVector.y;
-    this.player.x += this.playerVelocity.x;
-    this.player.y += this.playerVelocity.y;
+
     this.inputVector.x = 0;
     this.inputVector.y = 0;
-    this.playerVelocity.x = 0;
-    this.playerVelocity.y = 0;
+
     if (
       this.keys.ArrowUp ||
       this.keys.ArrowDown ||
@@ -288,6 +279,7 @@ export class TileMapRenderer {
 
     this.offsetX = this.camera.x;
     this.offsetY = this.camera.y;
+    this.updatePlayerCollision();
 
     if (this.centerPlayer) {
       this.playerOffsetX = this.width / 2 - this.player.x;
@@ -297,13 +289,28 @@ export class TileMapRenderer {
     this.prevX = this.player.x + this.playerOffsetX;
     this.prevY = this.player.y + this.playerOffsetY;
     this.gameTime += this.deltaT;
-    this.drawPlayerHitbox();
+
+    this.collisionStepAccumulator -= this.collisionStep;
+  }
+
+  updatePlayerCollision() {
     const candidates = this.broadPhaseDetection();
     const collisionTiles = this.narrowPhaseDetection(candidates);
     if (collisionTiles.length > 0) {
       this.resolveCollision(collisionTiles);
     }
-    // this.resolveCollision(collisionTiles);
+    this.player.x += this.playerVelocity.x;
+    this.player.y += this.playerVelocity.y;
+    this.playerVelocity.x = 0;
+    this.playerVelocity.y = 0;
+
+    if (this.cameraSync) {
+      this.camera.x = this.player.x;
+      this.camera.y = this.player.y;
+    }
+
+    this.offsetX = this.camera.x;
+    this.offsetY = this.camera.y;
   }
 
   // DRAWS //
@@ -448,6 +455,7 @@ export class TileMapRenderer {
   }
 
   drawDayNightCycle() {
+    return;
     const currentTime = this.gameTime % 1200000; // 24-hour cycle in ms
     const hour = (currentTime / this.msPerHour) % 24;
     let color;
@@ -793,7 +801,7 @@ export class TileMapRenderer {
       }
     }
 
-    console.log("Broadphase:", nInt, "its");
+    // console.log("Broadphase:", nInt, "its");
     return candidates;
   }
 
@@ -838,7 +846,7 @@ export class TileMapRenderer {
           normal = new UTILS.Vec2(0, -dy).normalize();
         } else {
           overlap = overlapX;
-          normal = new UTILS.Vec2(-dx, 0).normalize();
+          normal = new UTILS.Vec2(dx, 0).normalize();
         }
 
         this.drawPoint(closestPoint.x, closestPoint.y);
@@ -850,11 +858,11 @@ export class TileMapRenderer {
   }
 
   resolveCollision(collisions) {
-    collisions.sort((a, b) => a.overlap < b.overlap);
+    collisions.sort((a, b) => b.overlap - a.overlap);
 
     // Ensure playerVelocity is initialized
     if (!this.playerVelocity) {
-      this.playerVelocity = { x: 0, y: 0 };
+      this.playerVelocity = new UTILS.Vec2(0, 0);
     }
 
     for (const collision of collisions) {
@@ -867,18 +875,25 @@ export class TileMapRenderer {
         .scale(this.scale)
         .scale(this.tileWidth)
         .scale(this.zoom);
+      console.log(deltaPos);
+      this.player.x += deltaPos.x;
+      this.player.y += deltaPos.y;
 
-      const dampingFactor = 0.5;
-      deltaPos = deltaPos.scale(dampingFactor);
+      if (Math.abs(normal.x) > 0) {
+        this.playerVelocity.x = 0;
+      }
+      if (Math.abs(normal.y) > 0) {
+        this.playerVelocity.y = 0;
+      }
 
-      this.playerVelocity = this.playerVelocity.add(deltaPos);
-
-      this.playerVelocity = this.playerVelocity.scale(0.9);
+      const buffer = 0;
+      this.player.x += normal.x * buffer;
+      this.player.y += normal.y * buffer;
     }
   }
 
   pointIntersectPlayer(playerTilePos, point) {
-    console.log(playerTilePos, point);
+    // console.log(playerTilePos, point);
     const normalizedPlayerWidth =
       this.playerWidth / this.scale / this.tileWidth;
     const normalizedPlayerHeight =
@@ -1213,8 +1228,10 @@ export class TileMapRenderer {
 
     let validPositionFound = false;
     let spawnX, spawnY;
-
-    while (!validPositionFound) {
+    let maxAttempts = 500;
+    let attempts = 0;
+    while (!validPositionFound && attempts < maxAttempts) {
+      attempts++;
       spawnX = Math.random() * mapWidth;
       spawnY = Math.random() * mapHeight;
 
