@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pleurs d'en bas</title>
+
+    <style>
+        @font-face {
+            font-family: ending;
+            src: url("./public/alagard.ttf");
+        }
+        .main-menu {
+            position: absolute;
+            left: 30%;
+            top: 20%;
+            font-family: ending;
+        }
+        .main-menu h1 {
+            font-size: 4em;
+            margin-bottom: 0;
+        }
+        .main-menu #version-id {
+            margin-top: 0;
+            text-align: right;
+        }
+        .main-menu button {
+            background: none;
+            border: none;
+            font-size: 2em;
+            cursor: pointer;
+            font-family: ending;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-menu" id="main-menu">
+        <h1>Pleurs d'en bas</h1>
+        <h3 id="version-id">vBeta</h3>
+        <h3>Par Jiacheng Liu et Justin Yang</h3>
+
+        <h2>Comment jouer</h2>
+        <p>
+            [WASD] pour bouger le joueur <br>
+            [M1] pour tirer <br>
+            [E] pour intéragir <br>
+            Utilisez la souris pour viser <br>
+            Vainquez tous les enemies d'une chambre pour continuer
+        </p>
+
+        <button id="play-btn">> Jouer</button>
+    </div>
+
+    <script>
+        document.getElementById('play-btn').onclick = () => {
+            document.getElementById('main-menu').style.visibility = 'hidden'
+
+            // start game
+        }
+    </script>
+</body>
+</html>
