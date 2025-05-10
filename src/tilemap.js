@@ -22,13 +22,14 @@ export class TileMapRenderer {
     uiCanvas,
     vegSpritesheet5012,
     vegSpritesheet34,
+    golemLeftSheet,
   ) {
     this.tileMap = tileMap;
     this.spritesheet = spritesheet;
     this.playerSpritesheet = playerSpritesheet;
     this.walkSpritesheet = walkSpritesheet;
     this.runSpritesheet = runSpritesheet;
-
+    this.golemWalkSpritesheet = golemLeftSheet;
     this.vegSpritesheet5012 = vegSpritesheet5012;
     this.vegSpritesheet34 = vegSpritesheet34;
 
@@ -71,6 +72,9 @@ export class TileMapRenderer {
     this.lastIDLEFrame = 0;
     this.lastWALKFrame = 0;
     this.lastRUNFrame = 0;
+
+    this.enemyAttackFrame = 0;
+    this.enemyWalkFrame = 0;
 
     this.animDeltaT = 0;
     this.animLastT = 0;
@@ -129,12 +133,14 @@ export class TileMapRenderer {
     // pve
     this.enemies = [];
     this.SAFE_ZONE = 400;
-    this.UPDATE_PATH_CYCLE = 20; // update path every 240 render cycles
+    this.UPDATE_PATH_CYCLE = 5; // update path every 240 render cycles
     this.nRenderCycles = 0;
 
     // pathfind
     this.grid = null;
     this.ogGrid = null;
+
+    this.singleInit = false;
   }
 
   async init() {
@@ -196,7 +202,7 @@ export class TileMapRenderer {
 
     this.fillShop(this.buyAbleWeapons);
     this.syncMoney();
-    this.teleportPlayer(0, 0);
+    this.teleportPlayer(10, 10);
     this.cheatyGetGun();
     this.initGun();
   }
@@ -207,18 +213,21 @@ export class TileMapRenderer {
     this.deltaT = Date.now() - this.lastT;
     this.lastT = Date.now();
     this.ctx.clearRect(0, 0, this.width, this.height);
+    this.ctx.fillStyle = "black";
+    this.ctx.fillRect(0, 0, this.width, this.height);
     this.drawAllLayers();
     this.drawAndUpdatePlants(); // plant growth && draw
     if (this.enableGun && this.currentWeapon) {
       this.currentWeapon.updateProjectiles(this.tileWidth, this.scale);
       this.drawBullets();
-
+      this.playerBulletCollisionCheck();
       if (this.enemies.length >= 1) {
         this.enemyAttack();
         this.cleanEnemiesArray();
         this.enemies.forEach((e) => {
           e.updateProjectiles(this.tileWidth, this.scale);
         });
+        this.enemyBulletCollisionCheck();
       }
     }
     this.projectileCollisionDetection();
@@ -253,7 +262,17 @@ export class TileMapRenderer {
     if (this.tweenGroup) {
       this.tweenGroup.update();
     }
+
+    if (!this.singleInit) {
+      this.spawnEnemies();
+      this.spawnEnemies();
+      this.spawnEnemies();
+      this.spawnEnemies();
+      this.singleInit = true;
+    }
+
     this.update();
+
     requestAnimationFrame(() => this.animate());
   }
 
@@ -499,6 +518,17 @@ export class TileMapRenderer {
     this.drawDayNightCycle();
   }
 
+  drawEnemy() {
+    const actions = {
+      WALK: {
+        frameCount: 8,
+        speed: this.ANIM_SPEED_WALK,
+        draw: () => this.drawEnemyWalk(dir),
+      },
+    };
+  }
+
+  drawEnemyWalk(x, y) {}
   drawDayNightCycle() {
     const currentTime = this.gameTime % 1200000; // 24-hour cycle in ms
     const hour = (currentTime / this.msPerHour) % 24;
@@ -1462,7 +1492,7 @@ export class TileMapRenderer {
             1 * 2, // TODO: WAVE MUL
             200,
             5,
-            "blue",
+            "#5cb3cc",
             this.canvas,
           );
           console.log("ENEMY SHOT", proj);
@@ -1475,6 +1505,47 @@ export class TileMapRenderer {
 
   cleanEnemiesArray() {
     this.enemies = this.enemies.filter((e) => !e.isDead);
+  }
+
+  enemyBulletCollisionCheck() {
+    for (let i of this.currentWeapon.projectiles) {
+      for (let j of this.enemies) {
+        // console.log(i, j);
+        const r = { x: j.x, y: j.y, width: 1, height: 1 };
+        const c = { x: i.position.x, y: i.position.y, radius: 0.01 };
+        if (this.circleRect(c, r).collision) {
+          j.health -= i.damage;
+          if (j.health <= 0) {
+            j.health = 0;
+            this.dropBuffsEnemy(j.x, j.y);
+            this.coins += this.baseStats.coins;
+            this.hp += 10;
+            if (this.hp > 100) {
+              this.hp = 100;
+            }
+          }
+          i.alive = false;
+        }
+      }
+    }
+  }
+
+  playerBulletCollisionCheck() {
+    for (let i of this.enemies) {
+      for (let p of i.projectiles) {
+        if (!p.alive) continue;
+        const playerCoord = this.getTilePosition(
+          this.width / 2,
+          this.height / 2,
+        );
+        const r = { x: playerCoord.x, y: playerCoord.y, width: 1, height: 1 };
+        const c = { x: p.position.x, y: p.position.y, radius: 0.01 };
+        if (this.circleRect(c, r).collision) {
+          this.hp -= p.damage;
+          p.alive = false;
+        }
+      }
+    }
   }
 
   drawSquareFromTileXY(x, y) {

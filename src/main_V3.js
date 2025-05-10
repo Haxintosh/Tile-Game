@@ -19,6 +19,7 @@ const images = {
   playerRun: "CHARACTER/RUN.png",
   vegStage5012: "HARVEST/VEG/VEG_STAGE_5_0_1_2.png",
   vegStage34: "HARVEST/VEG/VEG_STAGE_3_4.png",
+  golemLeft: "MOBS/GOLEM/golem-right.png",
 };
 
 let nLoaded = 0;
@@ -79,6 +80,7 @@ async function init() {
     uiCanvas,
     images.vegStage5012,
     images.vegStage34,
+    images.golemLeft,
   );
   await tilemap.init();
   isLoaded = true;
