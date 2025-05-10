@@ -177,7 +177,7 @@ export class TileMapRenderer {
     this.addHooks();
     this.debug();
 
-    this.tileWidth = (this.canvas.width * 2) / this.tileMap.mapWidth;
+    this.tileWidth = 100; // (this.canvas.width * 2) / this.tileMap.mapWidth;
     // this.centerMap();
     this.drawAllLayers();
     this.player = {
@@ -1469,6 +1469,21 @@ export class TileMapRenderer {
           10,
           10,
         );
+      }
+    }
+
+    if (this.enemies.length >= 1) {
+      for (let enemy of this.enemies) {
+        for (let b of enemy.projectiles) {
+          if (!b.alive) continue;
+          this.ctx.fillStyle = b.color;
+          this.ctx.fillRect(
+            b.position.x * this.tileWidth * this.scale - this.offsetX,
+            b.position.y * this.tileWidth * this.scale - this.offsetY,
+            20,
+            20,
+          );
+        }
       }
     }
   }
