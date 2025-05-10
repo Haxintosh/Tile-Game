@@ -99,7 +99,7 @@ export class Weapon {
       );
     }
 
-    this.ammo--;
+    // this.ammo--;
     this.projectiles = this.projectiles.concat(projectiles);
     // console.log(this.projectiles);
     this.lastFired = Date.now();

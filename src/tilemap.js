@@ -1267,7 +1267,11 @@ export class TileMapRenderer {
     let validPositionFound = false;
     let spawnX, spawnY;
 
-    while (!validPositionFound) {
+    let maxAttempts = 100;
+    let attempts = 0;
+
+    while (!validPositionFound && attempts < maxAttempts) {
+      attempts++;
       spawnX = Math.random() * mapWidth;
       spawnY = Math.random() * mapHeight;
 
@@ -1309,7 +1313,7 @@ export class TileMapRenderer {
   }
 
   spawnEnemyAt(x, y, maxHealth = 100) {
-    const enemy = new ENEMY.Enemy(maxHealth, 5, 0.05, x, y);
+    const enemy = new ENEMY.Enemy(maxHealth, 5, 0.05, x, y, 10, 10);
     this.enemies.push(enemy);
     this.enemyPathfindUpdate();
   }
