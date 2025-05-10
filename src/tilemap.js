@@ -212,6 +212,14 @@ export class TileMapRenderer {
     if (this.enableGun && this.currentWeapon) {
       this.currentWeapon.updateProjectiles(this.tileWidth, this.scale);
       this.drawBullets();
+
+      if (this.enemies.length >= 1) {
+        this.enemyAttack();
+        this.cleanEnemiesArray();
+        this.enemies.forEach((e) => {
+          e.updateProjectiles(this.tileWidth, this.scale);
+        });
+      }
     }
     this.projectileCollisionDetection();
     this.drawPlayer();
@@ -1364,7 +1372,7 @@ export class TileMapRenderer {
         }
         this.grid[step.y][step.x] = 1;
       }
-      console.log(newPath, tilePos);
+      // console.log(newPath, tilePos);
       // newPath.pop(); // remove player position from path
       enemy.setPath(newPath);
     }
@@ -1426,6 +1434,49 @@ export class TileMapRenderer {
       }
     }
   }
+
+  enemyAttack() {
+    // check if player inside enemy range
+    const enemyRng = 10;
+    for (let enemy of this.enemies) {
+      if (enemy.isDead) continue;
+      const playerTilePos = this.getTilePosition(
+        this.width / 2,
+        this.height / 2,
+      );
+
+      const vecPlayerTilePos = new UTILS.Vec2(playerTilePos.x, playerTilePos.y);
+
+      const enemyTilePos = new UTILS.Vec2(enemy.x, enemy.y);
+      const distance = vecPlayerTilePos.distance(enemyTilePos);
+      if (distance < enemyRng) {
+        if (Date.now() - enemy.lastAtk >= enemy.atkCD) {
+          const origin = new UTILS.Vec2(enemy.x + 0.5, enemy.y + 0.5);
+          const target = new UTILS.Vec2(playerTilePos.x, playerTilePos.y);
+          const dir = target.sub(origin).normalize();
+
+          // shoot bullet
+          const proj = new WP.Projectile(
+            origin,
+            dir,
+            1 * 2, // TODO: WAVE MUL
+            200,
+            5,
+            "blue",
+            this.canvas,
+          );
+          console.log("ENEMY SHOT", proj);
+          enemy.lastAtk = Date.now();
+          enemy.projectiles.push(proj);
+        }
+      }
+    }
+  }
+
+  cleanEnemiesArray() {
+    this.enemies = this.enemies.filter((e) => !e.isDead);
+  }
+
   drawSquareFromTileXY(x, y) {
     this.ctx.fillStyle = "rgba(255,0,255,0.5)";
     this.ctx.fillRect(

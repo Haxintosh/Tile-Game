@@ -68,6 +68,16 @@ export class Enemy {
     }
   }
   cleanProjectilesArray() {
+    // console.log("before", this.projectiles.length);
     this.projectiles = this.projectiles.filter((p) => p.alive);
+    // console.log("after", this.projectiles.length);
+  }
+
+  updateProjectiles(tileWidth, scale) {
+    for (const projectile of this.projectiles) {
+      projectile.update(tileWidth, scale);
+      // console.log("projectile", this.projectiles.length);
+    }
+    this.cleanProjectilesArray();
   }
 }
